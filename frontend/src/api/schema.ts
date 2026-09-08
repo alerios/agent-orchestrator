@@ -4161,6 +4161,7 @@ export interface components {
         SteerConversationRequest: {
             attachments?: components["schemas"]["ConversationImageContentRequest"][];
             clientMessageId?: string;
+            recoverOnly?: boolean;
             text: string;
         };
         SteerConversationResponse: {

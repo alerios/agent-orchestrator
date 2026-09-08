@@ -11548,6 +11548,8 @@ components:
           type: array
         clientMessageId:
           type: string
+        recoverOnly:
+          type: boolean
         text:
           type: string
       required:
