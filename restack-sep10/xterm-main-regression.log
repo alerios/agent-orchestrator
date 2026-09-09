@@ -1,0 +1,36 @@
+
+ RUN  v4.1.8 /private/tmp/pr4463-split/xterm/frontend
+
+ ❯ src/renderer/components/XtermTerminal.test.tsx (99 tests | 1 failed | 97 skipped) 187ms
+     × lets xterm drain viewport initialization before disposal (DEV=false) 22ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/renderer/components/XtermTerminal.test.tsx > XtermTerminal > lets xterm drain viewport initialization before disposal (DEV=false)
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array []
+
+
+Number of calls: 1
+
+ ❯ src/renderer/components/XtermTerminal.test.tsx:312:33
+    310|    view.unmount();
+    311|
+    312|    expect(terminal.dispose).not.toHaveBeenCalled();
+       |                                 ^
+    313|    expect(state.lifecycle).toEqual([]);
+    314|    act(() => vi.runOnlyPendingTimers());
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed | 97 skipped (99)
+   Start at  02:54:02
+   Duration  3.66s (transform 1.39s, setup 569ms, import 1.82s, tests 187ms, environment 900ms)
+

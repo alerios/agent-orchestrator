@@ -1,0 +1,168 @@
+{
+  "frontend": [
+    {
+      "stage": "steer",
+      "name": "typecheck",
+      "exit": 0,
+      "seconds": 76.5
+    },
+    {
+      "stage": "steer",
+      "name": "e2e-typecheck",
+      "exit": 0,
+      "seconds": 8.3
+    },
+    {
+      "stage": "steer",
+      "name": "vitest",
+      "exit": 0,
+      "seconds": 219.7
+    },
+    {
+      "stage": "steer",
+      "name": "renderer-smoke",
+      "exit": 0,
+      "seconds": 126.2
+    },
+    {
+      "stage": "xterm",
+      "name": "typecheck",
+      "exit": 0,
+      "seconds": 61.2
+    },
+    {
+      "stage": "xterm",
+      "name": "e2e-typecheck",
+      "exit": 0,
+      "seconds": 7.6
+    },
+    {
+      "stage": "xterm",
+      "name": "vitest",
+      "exit": 0,
+      "seconds": 161.4
+    },
+    {
+      "stage": "xterm",
+      "name": "renderer-smoke",
+      "exit": 0,
+      "seconds": 106.5
+    },
+    {
+      "stage": "text",
+      "name": "typecheck",
+      "exit": 0,
+      "seconds": 53.9
+    },
+    {
+      "stage": "text",
+      "name": "e2e-typecheck",
+      "exit": 0,
+      "seconds": 6.9
+    },
+    {
+      "stage": "text",
+      "name": "vitest",
+      "exit": 0,
+      "seconds": 155.2
+    },
+    {
+      "stage": "text",
+      "name": "renderer-smoke",
+      "exit": 0,
+      "seconds": 117.3
+    },
+    {
+      "stage": "attachments",
+      "name": "typecheck",
+      "exit": 0,
+      "seconds": 66.7
+    },
+    {
+      "stage": "attachments",
+      "name": "e2e-typecheck",
+      "exit": 0,
+      "seconds": 8.4
+    },
+    {
+      "stage": "attachments",
+      "name": "vitest",
+      "exit": 0,
+      "seconds": 213.5,
+      "firstExit": 1,
+      "rerun": true
+    },
+    {
+      "stage": "attachments",
+      "name": "renderer-smoke",
+      "exit": 0,
+      "seconds": 114.1
+    },
+    {
+      "stage": "queue",
+      "name": "typecheck",
+      "exit": 0,
+      "seconds": 66.8
+    },
+    {
+      "stage": "queue",
+      "name": "e2e-typecheck",
+      "exit": 0,
+      "seconds": 11.1
+    },
+    {
+      "stage": "queue",
+      "name": "vitest",
+      "exit": 0,
+      "seconds": 164.6
+    },
+    {
+      "stage": "queue",
+      "name": "renderer-smoke",
+      "exit": 0,
+      "seconds": 110.7
+    },
+    {
+      "stage": "inline",
+      "name": "typecheck",
+      "exit": 0,
+      "seconds": 61.2
+    },
+    {
+      "stage": "inline",
+      "name": "e2e-typecheck",
+      "exit": 0,
+      "seconds": 6.9
+    },
+    {
+      "stage": "inline",
+      "name": "vitest",
+      "exit": 0,
+      "seconds": 157.6
+    },
+    {
+      "stage": "inline",
+      "name": "renderer-smoke",
+      "exit": 0,
+      "seconds": 110.7
+    }
+  ],
+  "backend": [
+    {
+      "name": "go-vet",
+      "exit": 0
+    },
+    {
+      "name": "go-race",
+      "exit": 0
+    },
+    {
+      "name": "go-lint",
+      "exit": 0
+    },
+    {
+      "name": "gofmt",
+      "exit": 0
+    }
+  ]
+}

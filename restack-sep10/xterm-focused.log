@@ -1,0 +1,9 @@
+
+ RUN  v4.1.8 /private/tmp/pr4463-split/xterm/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  99 passed (99)
+   Start at  02:52:49
+   Duration  15.56s (transform 6.10s, setup 720ms, import 7.71s, tests 5.51s, environment 1.42s)
+

@@ -1,0 +1,156 @@
+ 1:  40816926f !  1:  fabbcd6ad fix(terminal): defer disposal until viewport initialization drains
+    @@ frontend/src/renderer/components/XtermTerminal.test.tsx: vi.mock("@xterm/xterm",
+     +				window.setTimeout(() => state.lifecycle.push("viewport-sync"), 0);
+     +			}
+      		}
+    - 		write() {}
+    + 		write(data: Uint8Array, done?: () => void) {
+    + 			this.writeBuffer += new TextDecoder().decode(data);
+    +@@ frontend/src/renderer/components/XtermTerminal.test.tsx: vi.mock("@xterm/xterm", () => ({
+    + 			done?.();
+    + 		}
+      		writeln() {}
+    --		dispose() {}
+    -+		dispose() {
+    +-		dispose = vi.fn();
+    ++		dispose = vi.fn(() => {
+     +			state.lifecycle.push("dispose");
+    -+		}
+    ++		});
+      		onData(listener: (data: string) => void) {
+      			this.dataListeners.add(listener);
+      			return { dispose: () => this.dataListeners.delete(listener) };
+    @@ frontend/src/renderer/components/XtermTerminal.test.tsx: describe("XtermTerminal
+      		}
+      	});
+      
+    -+	it("lets xterm drain its queued viewport initialization before disposal", () => {
+    -+		vi.useFakeTimers();
+    +-	it("defers disposal behind xterm's pending viewport callback", () => {
+    ++	it.each([true, false])("lets xterm drain viewport initialization before disposal (DEV=%s)", (development) => {
+    ++		vi.stubEnv("DEV", development);
+    + 		vi.useFakeTimers();
+     +		state.queueViewportSyncOnOpen = true;
+    -+		try {
+    + 		try {
+    +-			const { unmount } = render(<XtermTerminal theme="dark" />);
+     +			const view = render(<XtermTerminal theme="dark" />);
+    + 			const terminal = state.lastTerminal!;
+     +			view.unmount();
+    -+
+    + 
+    +-			unmount();
+    + 			expect(terminal.dispose).not.toHaveBeenCalled();
+    +-
+     +			expect(state.lifecycle).toEqual([]);
+    -+			act(() => vi.runOnlyPendingTimers());
+    + 			act(() => vi.runOnlyPendingTimers());
+     +			expect(state.lifecycle).toEqual(["viewport-sync", "dispose"]);
+    -+		} finally {
+    -+			vi.useRealTimers();
+    -+		}
+    -+	});
+    -+
+    - 	it("preserves the agent TUI palette without contrast remapping", () => {
+    - 		render(<XtermTerminal theme="dark" />);
+    + 			expect(terminal.dispose).toHaveBeenCalledOnce();
+    + 		} finally {
+    + 			vi.useRealTimers();
+    ++			vi.unstubAllEnvs();
+    + 		}
+    + 	});
+      
+     
+      ## frontend/src/renderer/components/XtermTerminal.tsx ##
+    @@ frontend/src/renderer/components/XtermTerminal.tsx: export function XtermTermina
+      			notifyCursorSchemeRef.current = () => {};
+      			announcedCursorSchemeRef.current = null;
+      			userInputListeners.clear();
+    --			try {
+    --				term.dispose();
+    --			} catch {
+    --				// Some renderer addons can throw during dispose in certain GPU
+    --				// environments; the terminal is being torn down regardless.
+    --			}
+    +-			const disposeTerminal = () => {
+     +			// xterm's Viewport queues an untracked zero-delay scroll-area sync during
+     +			// open(). React StrictMode immediately runs this cleanup once after mount;
+     +			// disposing the renderer before that queued sync runs makes xterm read the
+    @@ frontend/src/renderer/components/XtermTerminal.tsx: export function XtermTermina
+     +			// the terminal remains internally valid until its own initialization work
+     +			// has drained. All AO listeners and attachment state are already detached.
+     +			window.setTimeout(() => {
+    -+				try {
+    -+					term.dispose();
+    -+				} catch {
+    -+					// Some renderer addons can throw during dispose in certain GPU
+    -+					// environments; the terminal is being torn down regardless.
+    -+				}
+    + 				try {
+    + 					term.dispose();
+    + 				} catch {
+    + 					// Some renderer addons can throw during dispose in certain GPU
+    + 					// environments; the terminal is being torn down regardless.
+    + 				}
+    +-			};
+    +-			if (import.meta.env.DEV) {
+    +-				// xterm's Viewport constructor queues an untracked zero-delay
+    +-				// syncScrollArea(). React StrictMode immediately runs this cleanup after
+    +-				// its development probe mount; queue disposal behind that callback so it
+    +-				// cannot read the already-cleared renderer dimensions.
+    +-				window.setTimeout(disposeTerminal, 0);
+    +-			} else {
+    +-				disposeTerminal();
+    +-			}
+     +			}, 0);
+      		};
+      	}, []);
+ 2:  2312eae46 !  2:  db1882c65 fix(chat): persist composer text across lifecycle boundaries
+    @@ frontend/src/main.ts: ipcMain.on(SET_TERMINAL_FOCUSED_CHANNEL, (event, focused:
+      // Backs the custom title-bar menu (WindowTitlebar). Each item maps to the same
+      // action the native default menu would have performed.
+      ipcMain.handle("menu:action", (_event, action: string) => {
+    -@@ frontend/src/main.ts: app.whenReady().then(async () => {
+    - // The supervisorLink fd is NOT explicitly closed on quit; the OS closes it when
+    - // the process exits for any reason (Cmd+Q, crash, SIGKILL). Sessions survive.
+    +@@ frontend/src/main.ts: setUpdateRestartFailureHandler(() => {
+    + 
+    + let updateQuitDeadlineArmed = false;
+      app.on("before-quit", (event) => {
+     +	if (chatDraftRisks.length > 0 && !chatDraftQuitConfirmed) {
+     +		event.preventDefault();
+ 3:  db63563e4 =  3:  ff2440b5d fix: preserve editable drafts after refused first sends
+ 4:  f42094b91 =  4:  31402c28d fix(chat): restore staged draft attachments after restart
+ 5:  7ff1ca3a5 =  5:  92bf1117f fix: restore draft image thumbnails from staged paths
+ 6:  ca063e22c !  6:  4ab83e46c fix(chat): persist queued edits with atomic delivery receipts
+    @@ frontend/src/renderer/components/chat/ChatWorkspace.tsx: function ChatWorkspaceC
+      									willQueue={Boolean(turn)}
+     -									disabled={snapshot.controller.state === "stopped" || controllerTransitioning || newWorkDisabled}
+     +									disabled={(snapshot.controller.state === "stopped" || controllerTransitioning || newWorkDisabled) && !queueEdit?.clientMessageId}
+    - 									disabledPlaceholder={controllerTransitioning
+    - 										? "Connecting to the agent…"
+    - 										: newWorkDisabled ? "Switching to terminal UI…" : undefined}
+    + 									// Switch/reconnect status is the topbar spinner beside ⋮ — not composer text.
+    + 									disabledPlaceholder={
+    + 										controllerTransitioning || newWorkDisabled ? "" : undefined
+     @@ frontend/src/renderer/components/chat/ChatWorkspace.tsx: function ChatWorkspaceContent({
+      									filePaths={filePaths}
+      									filePathsTruncated={filePathsTruncated}
+ 7:  a03d533b1 =  7:  7edf3fbb2 fix: release attachment metadata for completed queued edits
+ 8:  3829c4dcb !  8:  8bd0986ff fix(chat): recover inline edits with durable branch receipts
+    @@ frontend/src/renderer/components/chat/ChatWorkspace.test.tsx: describe("ChatWork
+      		expect(screen.queryByText("The agent controller stopped")).not.toBeInTheDocument();
+      		expect(screen.queryByRole("button", { name: "Resume agent" })).not.toBeInTheDocument();
+     +		expect(screen.getByTestId("chat-conversation-panel")).toHaveAttribute("inert");
+    - 		expect(screen.getByText("Connecting to the agent…")).toBeInTheDocument();
+    - 		expect(screen.queryByText("The controller is not connected")).not.toBeInTheDocument();
+    - 		expect(screen.getByRole("combobox", { name: "Message the agent" })).toHaveAttribute("contenteditable", "false");
+    + 		// Progress is the topbar spinner; the composer stays empty rather than
+    + 		// painting a second "Connecting…" / "Switching…" label over the editor.
+    + 		expect(screen.queryByText("Connecting to the agent…")).not.toBeInTheDocument();
+     @@ frontend/src/renderer/components/chat/ChatWorkspace.test.tsx: describe("ChatWorkspace message actions", () => {
+      		await user.type(editor, "Replace the first prompt exactly.");
+      		await user.click(screen.getByRole("button", { name: "Send edited message" }));
+ 9:  9865a46c9 =  9:  18cae556a fix(chat): reconcile steer delivery without repeating provider actions
+10:  d6d73d999 = 10:  1b0a2f0b7 refactor(chat): keep steer receipts in a focused diff
+11:  bfa0f6a58 = 11:  8999dbddc chore(chat): align generated receipt query documentation
