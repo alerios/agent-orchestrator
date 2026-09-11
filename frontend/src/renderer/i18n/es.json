@@ -579,6 +579,7 @@
 	"inspector.metrics.effort.filesChanged": "Files changed",
 	"inspector.metrics.effort.filesRead": "Files read",
 	"inspector.metrics.effort.idle": "Idle",
+	"inspector.metrics.effort.noData": "No effort data recorded for this session yet.",
 	"inspector.metrics.effort.linesChanged": "Lines changed",
 	"inspector.metrics.effort.testsRun": "Tests run",
 	"inspector.metrics.effort.testsRunNote": "Detected from command names; a custom test command may not be counted.",

@@ -131,4 +131,25 @@ describe("MetricsView", () => {
 		render(<MetricsView session={session} />);
 		expect(screen.getByText(/No tool calls recorded/i)).toBeInTheDocument();
 	});
+
+	it("renders lines added and removed", () => {
+		mockEffort = {
+			data: {
+				effort: { ...baseEffort, linesAdded: 42, linesRemoved: 17 },
+				toolMix: [],
+			},
+			isError: false,
+			isLoading: false,
+		};
+		render(<MetricsView session={session} />);
+		const value = screen.getByTestId("effort-lines-changed-value");
+		expect(value).toHaveTextContent("+42");
+		expect(value).toHaveTextContent("-17");
+	});
+
+	it("shows an explicit message when no effort data has been recorded yet", () => {
+		mockEffort = { data: undefined, isError: true, isLoading: false };
+		render(<MetricsView session={session} />);
+		expect(screen.getByText(/No effort data recorded for this session yet/i)).toBeInTheDocument();
+	});
 });

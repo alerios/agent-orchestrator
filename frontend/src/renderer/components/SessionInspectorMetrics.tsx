@@ -40,7 +40,11 @@ export function MetricsView({ session }: { session: WorkspaceSession }) {
 						<p className={inspectorEmptyClass}>{t("inspector.metrics.noData")}</p>
 					</Section>
 				)}
-				{!effortQuery.isLoading && !effortQuery.isError && effortData ? (
+				{effortQuery.isLoading ? null : effortQuery.isError ? (
+					<Section title={t("inspector.metrics.effort.title")}>
+						<p className={inspectorEmptyClass}>{t("inspector.metrics.effort.noData")}</p>
+					</Section>
+				) : effortData ? (
 					<>
 						<EffortBlock effort={effortData.effort} />
 						<ToolMixBlock mix={effortData.toolMix} timingAvailable={effortData.effort.timingAvailable} />
@@ -79,8 +83,34 @@ function EffortBlock({ effort }: { effort: SessionEffort["effort"] }) {
 				<EffortStat labelKey="inspector.metrics.effort.toolCalls" value={String(effort.toolCalls)} />
 				<EffortStat labelKey="inspector.metrics.effort.filesRead" value={String(effort.filesRead)} />
 				<EffortStat labelKey="inspector.metrics.effort.filesChanged" value={String(effort.filesChanged)} />
+				<div className="min-w-0">
+					<dt className="truncate text-2xs text-settings-muted">{t("inspector.metrics.effort.linesChanged")}</dt>
+					<dd className="mt-0.5 truncate font-mono text-sm-md text-settings-label" data-testid="effort-lines-changed-value">
+						<span className="text-success">+{effort.linesAdded}</span>{" "}
+						<span className="text-destructive">-{effort.linesRemoved}</span>
+					</dd>
+				</div>
 				<EffortStat labelKey="inspector.metrics.effort.commandsRun" value={String(effort.commandsRun)} />
-				<EffortStat labelKey="inspector.metrics.effort.testsRun" value={String(effort.testsRun)} />
+				<div className="min-w-0">
+					<dt className="flex items-center gap-1 truncate text-2xs text-settings-muted">
+						{t("inspector.metrics.effort.testsRun")}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<button
+									aria-label={t("inspector.metrics.effort.testsRunNote")}
+									className="rounded-sm text-settings-muted outline-none transition-colors hover:text-settings-label focus-visible:ring-1 focus-visible:ring-ring"
+									type="button"
+								>
+									<Info aria-hidden="true" className="size-3" />
+								</button>
+							</TooltipTrigger>
+							<TooltipContent className="max-w-64 text-left" side="top">
+								<p>{t("inspector.metrics.effort.testsRunNote")}</p>
+							</TooltipContent>
+						</Tooltip>
+					</dt>
+					<dd className="mt-0.5 truncate font-mono text-sm-md text-settings-label">{effort.testsRun}</dd>
+				</div>
 				<EffortStat labelKey="inspector.metrics.effort.compactions" value={String(effort.compactions)} />
 			</dl>
 			{effort.timingAvailable ? null : (
