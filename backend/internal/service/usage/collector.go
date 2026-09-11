@@ -63,6 +63,7 @@ type SourceRoots struct {
 	CodexSessions  string
 	CodexArchived  string
 	KimiHome       string
+	OpenCodeHome   string
 }
 
 // DefaultSourceRoots resolves provider-owned transcript directories. dataDir
@@ -82,11 +83,19 @@ func DefaultSourceRoots(ctx context.Context, dataDir string) (SourceRoots, error
 	if strings.TrimSpace(dataDir) == "" {
 		dataDir = filepath.Join(home, ".ao", "data")
 	}
+	xdgDataHome := strings.TrimSpace(os.Getenv("XDG_DATA_HOME"))
+	var openCodeHome string
+	if xdgDataHome != "" {
+		openCodeHome = filepath.Join(xdgDataHome, "opencode", "opencode.db")
+	} else {
+		openCodeHome = filepath.Join(home, ".local", "share", "opencode", "opencode.db")
+	}
 	return SourceRoots{
 		ClaudeProjects: filepath.Join(home, ".claude", "projects"),
 		CodexSessions:  filepath.Join(codexHome, "sessions"),
 		CodexArchived:  filepath.Join(codexHome, "archived_sessions"),
 		KimiHome:       filepath.Join(dataDir, "kimi"),
+		OpenCodeHome:   openCodeHome,
 	}, nil
 }
 
@@ -551,6 +560,15 @@ func (c *Collector) BackfillActive(ctx context.Context) error {
 // native hook pipeline. Prefer the Chat field only when it is present so older
 // migrated records can still fall back to their hook-derived identity.
 func usageNativeSessionID(session domain.SessionRecord) string {
+	// opencode has no hook-populated transcript identity and no per-session
+	// file to name: a single shared database holds every opencode session, so
+	// the binding's (session_id, harness, native_root_id) key uses AO's own
+	// session id as a stable synthetic identity. Which opencode session's
+	// usage actually belongs to this AO session is answered separately, by
+	// directory matching inside OpenCodeCollector.
+	if session.Harness == domain.HarnessOpenCode {
+		return boundedUsageMetadata(string(session.ID))
+	}
 	nativeID := session.Metadata.AgentSessionID
 	if domain.NormalizeSessionMode(session.Mode) == domain.SessionModeChat &&
 		strings.TrimSpace(session.Metadata.ProviderConversationID) != "" {
@@ -1686,7 +1704,11 @@ func (c *Collector) validateSourcePath(ctx context.Context, harness domain.Agent
 	if len(path) > maxUsagePathBytes {
 		return "", "", 0, errors.New(domain.UsageErrorArtifactPathRejected)
 	}
-	if !filepath.IsAbs(path) || strings.ToLower(filepath.Ext(path)) != ".jsonl" {
+	wantExt := ".jsonl"
+	if harness == domain.HarnessOpenCode {
+		wantExt = ".db"
+	}
+	if !filepath.IsAbs(path) || strings.ToLower(filepath.Ext(path)) != wantExt {
 		return "", "", 0, errors.New(domain.UsageErrorArtifactPathRejected)
 	}
 	resolved, err := filepath.EvalSymlinks(filepath.Clean(path))
@@ -1779,6 +1801,10 @@ func validateSourceAttribution(
 			filepath.Base(sessionDir) != binding.NativeRootID || subagentID != wantSubagent {
 			return rejected()
 		}
+	case domain.UsageSourceOpenCodeDB:
+		if binding.Harness != domain.HarnessOpenCode || nativeSessionID != binding.NativeRootID || subagentID != "" {
+			return rejected()
+		}
 	default:
 		return rejected()
 	}
@@ -1826,6 +1852,8 @@ func (c *Collector) allowedRoots(harness domain.AgentHarness) []string {
 		return []string{c.roots.CodexSessions, c.roots.CodexArchived}
 	case domain.HarnessKimi:
 		return []string{c.roots.KimiHome}
+	case domain.HarnessOpenCode:
+		return []string{c.roots.OpenCodeHome}
 	default:
 		return nil
 	}
@@ -1890,6 +1918,8 @@ func (c *Collector) discoverPath(ctx context.Context, harness domain.AgentHarnes
 		return c.discoverCodexPath(ctx, nativeID, "")
 	case domain.HarnessKimi:
 		return c.discoverKimiPath(ctx, nativeID)
+	case domain.HarnessOpenCode:
+		return c.discoverOpenCodePath(ctx)
 	}
 	type candidate struct {
 		path string
@@ -1969,6 +1999,26 @@ func (c *Collector) discoverKimiPath(ctx context.Context, nativeID string) (stri
 	}
 	sort.Strings(paths)
 	return paths[0], nil
+}
+
+// discoverOpenCodePath returns the shared opencode database path when it
+// exists. There is no per-session artifact to glob for: opencode stores every
+// session in one database file, so discovery here is just "does the
+// configured database exist yet" — matching the existing "" -> still
+// discovering semantics every other harness already relies on.
+func (c *Collector) discoverOpenCodePath(ctx context.Context) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	path := c.roots.OpenCodeHome
+	if strings.TrimSpace(path) == "" {
+		return "", nil
+	}
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return "", nil
+	}
+	return path, nil
 }
 
 func (c *Collector) discoverCodexPath(ctx context.Context, nativeID, parentID string) (string, error) {

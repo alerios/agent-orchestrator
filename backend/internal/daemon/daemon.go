@@ -624,6 +624,14 @@ func Run() error {
 			ingestorConfig.RequestAttributionRepair = usagePricing.RepairLegacyAttribution
 		}
 		ingestor := usagepipeline.NewIngestor(store, ingestorConfig)
+		openCodeWorkspace := &sessionWorkspaceLocator{sessions: sessionSvc}
+		openCodeCollector := usagepipeline.NewOpenCodeCollector(store, roots.OpenCodeHome, func(id domain.SessionID) (string, bool) {
+			path, _, err := openCodeWorkspace.SessionWorkspace(ctx, id)
+			if err != nil || path == "" {
+				return "", false
+			}
+			return path, true
+		})
 		usagePipeline = usagepipeline.NewPipeline(store, ingestor, usagePipelineWatchRoots(roots), usagepipeline.CoordinatorConfig{
 			Logger:     log,
 			Initialize: usageCollector.BackfillActive,
@@ -631,6 +639,7 @@ func Run() error {
 				return usageCollector.ReconcileSources(reconcileCtx, 0)
 			},
 			ReconcilePath: usageCollector.ReconcilePath,
+			OpenCode:      openCodeCollector,
 		})
 		lcStack.LCM.SetUsageFinalizer(usageCollector)
 	}

@@ -370,3 +370,96 @@ func waitForCoordinatorSignal(t *testing.T, signal <-chan struct{}, failure stri
 		t.Fatal(failure)
 	}
 }
+
+type fakeOpenCodeCollector struct {
+	mu    sync.Mutex
+	calls []int64
+	err   error
+}
+
+func (f *fakeOpenCodeCollector) Collect(_ context.Context, sourceID int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, sourceID)
+	return f.err
+}
+
+func (f *fakeOpenCodeCollector) callCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.calls)
+}
+
+func TestCoordinatorRoutesOpenCodeSourcesToDatabaseCollector(t *testing.T) {
+	fileIngests := 0
+	openCode := &fakeOpenCodeCollector{}
+	ingestor := coordinatorTestIngestor(func(context.Context, int64) (IngestResult, error) {
+		fileIngests++
+		return IngestResult{}, nil
+	})
+	coordinator := NewCoordinator(
+		&coordinatorTestStore{},
+		ingestor,
+		newCoordinatorTestWatcher(),
+		CoordinatorConfig{OpenCode: openCode},
+	)
+
+	if err := coordinator.ingestSourceForTest(context.Background(), domain.UsageSourceRecord{
+		ID: 7, Kind: domain.UsageSourceOpenCodeDB,
+	}); err != nil {
+		t.Fatalf("ingestSourceForTest: %v", err)
+	}
+
+	if got := openCode.callCount(); got != 1 || fileIngests != 0 {
+		t.Fatalf("ingests = (db %d, file %d), want (1, 0)", got, fileIngests)
+	}
+}
+
+func TestCoordinatorRoutesNonOpenCodeSourcesToFileIngestor(t *testing.T) {
+	fileIngests := 0
+	openCode := &fakeOpenCodeCollector{}
+	ingestor := coordinatorTestIngestor(func(context.Context, int64) (IngestResult, error) {
+		fileIngests++
+		return IngestResult{}, nil
+	})
+	coordinator := NewCoordinator(
+		&coordinatorTestStore{},
+		ingestor,
+		newCoordinatorTestWatcher(),
+		CoordinatorConfig{OpenCode: openCode},
+	)
+
+	if err := coordinator.ingestSourceForTest(context.Background(), domain.UsageSourceRecord{
+		ID: 9, Kind: domain.UsageSourceCodexRollout,
+	}); err != nil {
+		t.Fatalf("ingestSourceForTest: %v", err)
+	}
+
+	if got := openCode.callCount(); got != 0 || fileIngests != 1 {
+		t.Fatalf("ingests = (db %d, file %d), want (0, 1)", got, fileIngests)
+	}
+}
+
+func TestCoordinatorNilOpenCodeCollectorSkipsRatherThanPanics(t *testing.T) {
+	fileIngests := 0
+	ingestor := coordinatorTestIngestor(func(context.Context, int64) (IngestResult, error) {
+		fileIngests++
+		return IngestResult{}, nil
+	})
+	coordinator := NewCoordinator(
+		&coordinatorTestStore{},
+		ingestor,
+		newCoordinatorTestWatcher(),
+		CoordinatorConfig{},
+	)
+
+	if err := coordinator.ingestSourceForTest(context.Background(), domain.UsageSourceRecord{
+		ID: 11, Kind: domain.UsageSourceOpenCodeDB,
+	}); err != nil {
+		t.Fatalf("ingestSourceForTest: %v", err)
+	}
+
+	if fileIngests != 0 {
+		t.Fatalf("file ingests = %d, want 0 (opencode source with nil collector must be skipped)", fileIngests)
+	}
+}

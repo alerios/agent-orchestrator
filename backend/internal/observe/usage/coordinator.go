@@ -34,6 +34,12 @@ type transcriptWatcher interface {
 	Rebuild(context.Context, []string) error
 }
 
+// openCodeCollector routes an opencode_db-kind usage source to the
+// database-backed collector instead of the file-chunk Ingestor.
+type openCodeCollector interface {
+	Collect(context.Context, int64) error
+}
+
 // CoordinatorConfig configures the event-driven usage pipeline.
 type CoordinatorConfig struct {
 	Workers       int
@@ -44,6 +50,10 @@ type CoordinatorConfig struct {
 	Initialize    func(context.Context) error
 	Reconcile     func(context.Context) error
 	ReconcilePath func(context.Context, string) error
+	// OpenCode, when set, receives opencode_db-kind sources instead of the
+	// file Ingestor. A nil value (the default) skips those sources rather
+	// than panicking, so harnesses that never configure it are unaffected.
+	OpenCode openCodeCollector
 }
 
 // Coordinator turns filesystem, hook, startup, and retry signals into bounded
@@ -62,6 +72,8 @@ type Coordinator struct {
 	reconcilePath func(context.Context, string) error
 	refresh       chan struct{}
 	inventory     chan struct{}
+	openCode      openCodeCollector
+	sourceKinds   sync.Map // int64 sourceID -> domain.UsageSourceKind
 }
 
 // NewCoordinator constructs an event-driven usage coordinator.
@@ -100,6 +112,7 @@ func NewCoordinator(
 		reconcilePath: cfg.ReconcilePath,
 		refresh:       make(chan struct{}, 1),
 		inventory:     make(chan struct{}, 1),
+		openCode:      cfg.OpenCode,
 	}
 }
 
@@ -119,6 +132,33 @@ func (c *Coordinator) NotifyInventoryChanged() {
 	case c.inventory <- struct{}{}:
 	default:
 	}
+}
+
+// dispatchIngest routes an opencode_db-kind source to the database collector
+// and every other source to the file Ingestor, exactly as before. A source
+// whose kind is not yet known (never seen by an inventory refresh) falls
+// through to the file Ingestor, matching prior behavior for all non-opencode
+// harnesses.
+func (c *Coordinator) dispatchIngest(ctx context.Context, sourceID int64) (IngestResult, error) {
+	if kindVal, ok := c.sourceKinds.Load(sourceID); ok {
+		if kind, _ := kindVal.(domain.UsageSourceKind); kind == domain.UsageSourceOpenCodeDB {
+			if c.openCode == nil {
+				return IngestResult{}, nil
+			}
+			return IngestResult{}, c.openCode.Collect(ctx, sourceID)
+		}
+	}
+	return c.ingestor.Ingest(ctx, sourceID)
+}
+
+// ingestSourceForTest routes a fully-known source record by kind, bypassing
+// the kind-inventory cache normally built by inventory refreshes. It exists
+// for tests that want to exercise routing without running the full
+// event loop.
+func (c *Coordinator) ingestSourceForTest(ctx context.Context, source domain.UsageSourceRecord) error {
+	c.sourceKinds.Store(source.ID, source.Kind)
+	_, err := c.dispatchIngest(ctx, source.ID)
+	return err
 }
 
 type sourceWorkState struct {
@@ -155,7 +195,7 @@ func (c *Coordinator) run(ctx context.Context) {
 		go func() {
 			defer workers.Done()
 			for sourceID := range work {
-				result, err := c.ingestor.Ingest(workerCtx, sourceID)
+				result, err := c.dispatchIngest(workerCtx, sourceID)
 				select {
 				case results <- ingestionResult{sourceID: sourceID, result: result, err: err}:
 				case <-workerCtx.Done():
@@ -234,6 +274,7 @@ func (c *Coordinator) run(ctx context.Context) {
 		now := c.now().UTC()
 		for _, source := range sources {
 			live[source.ID] = struct{}{}
+			c.sourceKinds.Store(source.ID, source.Kind)
 			path := canonicalTranscriptPath(source.ArtifactPath)
 			nextPaths[path] = append(nextPaths[path], source.ID)
 			if source.NextRetryAt != nil && source.NextRetryAt.After(now) {
