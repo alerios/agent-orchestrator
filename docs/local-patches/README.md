@@ -4,9 +4,14 @@ Local, unsubmitted work against this checkout, kept as one branch per patch so
 each can be verified, rebased, and eventually opened as its own upstream PR
 without dragging the others along.
 
-**This branch (`local/patch-index`) is local-only bookkeeping. Never merge it
-into a patch branch and never include it in a PR.** It exists so the index
-itself is version-controlled next to the code it describes.
+**This directory is local-only bookkeeping. Never include it in a PR.**
+It originated on its own branch, `local/patch-index`, kept separate from the
+5 patch branches so none of them would carry doc-only commits into a PR. It's
+now also merged into `local/integration` (docs-only, no code overlap, so the
+merge was trivial) so the checkout you actually build and run from has this
+directory sitting right in the working tree instead of needing `git show
+local/patch-index:...` to read it. Still never merge it into one of the 5
+individual patch branches — those are the ones that go into a PR.
 
 All 5 branches below are now open as PRs upstream (see table). No issues were filed separately — the PRs themselves carry the context.
 
