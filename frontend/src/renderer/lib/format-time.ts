@@ -7,6 +7,22 @@ export function formatTimeCompact(isoDate: string | null | undefined): string {
 	});
 }
 
+/**
+ * Renders a millisecond duration compactly (e.g. "1h 05m", "42s"). A `null`
+ * duration means the value was never measured, so it renders as an explicit
+ * dash rather than fabricating "0s" for unmeasured time.
+ */
+export function formatDurationMs(value: number | null | undefined): string {
+	if (value === null || value === undefined || !Number.isFinite(value) || value < 0) return "—";
+	const totalSeconds = Math.floor(value / 1000);
+	const hours = Math.floor(totalSeconds / 3600);
+	const minutes = Math.floor((totalSeconds % 3600) / 60);
+	const seconds = totalSeconds % 60;
+	if (hours > 0) return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+	if (minutes > 0) return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+	return `${seconds}s`;
+}
+
 /** Extra-terse relative time for space-constrained navigation rows. */
 export function formatTimeTerse(
 	isoDate: string | null | undefined,

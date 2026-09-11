@@ -3,9 +3,12 @@ import { useId, useState, type ReactNode } from "react";
 import { InspectorSection as Section, inspectorEmptyClass } from "@aoagents/product-ui";
 import { ChevronDown, ChevronRight, Info } from "lucide-react";
 import { AgentAvatar } from "./AgentAvatar";
+import { useSessionEffort, type SessionEffort } from "../hooks/useSessionEffort";
 import { useSessionUsage, type SessionUsage } from "../hooks/useSessionUsage";
 import { formatEstimatedCost, type EstimatedCost } from "../lib/format-cost";
+import { formatDurationMs } from "../lib/format-time";
 import { formatTokenCount } from "../lib/format-token-count";
+import type { MessageKey } from "../i18n";
 import type { WorkspaceSession } from "../types/workspace";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
@@ -15,6 +18,8 @@ export function MetricsView({ session }: { session: WorkspaceSession }) {
 	const usageQuery = useSessionUsage(session.id, true);
 	const usage = usageQuery.data;
 	const hasUsage = hasMeaningfulSessionUsage(usage);
+	const effortQuery = useSessionEffort(session.id, true);
+	const effortData = effortQuery.data;
 	return (
 		<TooltipProvider>
 			<div role="tabpanel">
@@ -27,25 +32,112 @@ export function MetricsView({ session }: { session: WorkspaceSession }) {
 						<p className={inspectorEmptyClass}>{t("inspector.usage.processedTokensUnavailable")}</p>
 					</Section>
 				) : hasUsage && usage ? (
-					<>
-						<Section title={t("inspector.usage.title")}>
-							<UsageCostTelemetry usage={usage} />
-						</Section>
-						<Section title={t("inspector.metrics.coverage.title")}>
-							<p className={inspectorEmptyClass}>
-								{usage.incomplete
-									? t("inspector.metrics.coverage.partial")
-									: t("inspector.metrics.coverage.full")}
-							</p>
-						</Section>
-					</>
+					<Section title={t("inspector.usage.title")}>
+						<UsageCostTelemetry usage={usage} />
+					</Section>
 				) : (
 					<Section title={t("inspector.metrics")}>
 						<p className={inspectorEmptyClass}>{t("inspector.metrics.noData")}</p>
 					</Section>
 				)}
+				{!effortQuery.isLoading && !effortQuery.isError && effortData ? (
+					<>
+						<EffortBlock effort={effortData.effort} />
+						<ToolMixBlock mix={effortData.toolMix} timingAvailable={effortData.effort.timingAvailable} />
+					</>
+				) : null}
+				{hasUsage && usage ? (
+					<Section title={t("inspector.metrics.coverage.title")}>
+						<p className={inspectorEmptyClass}>
+							{usage.incomplete
+								? t("inspector.metrics.coverage.partial")
+								: t("inspector.metrics.coverage.full")}
+						</p>
+					</Section>
+				) : null}
 			</div>
 		</TooltipProvider>
+	);
+}
+
+function EffortBlock({ effort }: { effort: SessionEffort["effort"] }) {
+	const { t } = useTranslation();
+	return (
+		<Section title={t("inspector.metrics.effort.title")}>
+			<dl className="grid grid-cols-2 gap-1.5">
+				<EffortStat labelKey="inspector.metrics.effort.duration" value={formatDurationMs(effort.durationMs)} />
+				{effort.timingAvailable ? (
+					<>
+						<EffortStat
+							labelKey="inspector.metrics.effort.active"
+							testId="effort-active-value"
+							value={formatDurationMs(effort.activeMs)}
+						/>
+						<EffortStat labelKey="inspector.metrics.effort.idle" value={formatDurationMs(effort.idleMs)} />
+					</>
+				) : null}
+				<EffortStat labelKey="inspector.metrics.effort.toolCalls" value={String(effort.toolCalls)} />
+				<EffortStat labelKey="inspector.metrics.effort.filesRead" value={String(effort.filesRead)} />
+				<EffortStat labelKey="inspector.metrics.effort.filesChanged" value={String(effort.filesChanged)} />
+				<EffortStat labelKey="inspector.metrics.effort.commandsRun" value={String(effort.commandsRun)} />
+				<EffortStat labelKey="inspector.metrics.effort.testsRun" value={String(effort.testsRun)} />
+				<EffortStat labelKey="inspector.metrics.effort.compactions" value={String(effort.compactions)} />
+			</dl>
+			{effort.timingAvailable ? null : (
+				<p className={inspectorEmptyClass}>{t("inspector.metrics.effort.timingUnavailable")}</p>
+			)}
+		</Section>
+	);
+}
+
+function EffortStat({ labelKey, testId, value }: { labelKey: MessageKey; testId?: string; value: string }) {
+	const { t } = useTranslation();
+	return (
+		<div className="min-w-0">
+			<dt className="truncate text-2xs text-settings-muted">{t(labelKey)}</dt>
+			<dd className="mt-0.5 truncate font-mono text-sm-md text-settings-label" data-testid={testId}>
+				{value}
+			</dd>
+		</div>
+	);
+}
+
+function ToolMixBlock({ mix, timingAvailable }: { mix: SessionEffort["toolMix"]; timingAvailable: boolean }) {
+	const { t } = useTranslation();
+	if (mix.length === 0) {
+		return (
+			<Section title={t("inspector.metrics.tools.title")}>
+				<p className={inspectorEmptyClass}>{t("inspector.metrics.tools.empty")}</p>
+			</Section>
+		);
+	}
+	// The API already orders by total duration; without timing that ordering is
+	// meaningless, so re-sort by calls and say which ordering is in use.
+	const rows = timingAvailable ? mix : [...mix].sort((a, b) => b.calls - a.calls);
+	const totalCalls = rows.reduce((sum, row) => sum + row.calls, 0);
+	return (
+		<Section title={t("inspector.metrics.tools.title")}>
+			<p className={inspectorEmptyClass}>
+				{timingAvailable
+					? t("inspector.metrics.tools.sortedByTime")
+					: t("inspector.metrics.tools.sortedByCount")}
+			</p>
+			<ul className="flex flex-col gap-1">
+				{rows.map((row) => (
+					<li className="flex items-baseline justify-between gap-2" data-testid="tool-mix-row" key={row.toolName}>
+						<span className="truncate font-medium">{row.toolName}</span>
+						<span className="shrink-0 text-2xs text-settings-muted">
+							{t("inspector.metrics.tools.calls", { count: row.calls })}
+							{totalCalls > 0 ? ` · ${Math.round((row.calls / totalCalls) * 100)}%` : ""}
+							{row.totalDurationMs === null
+								? ` · ${t("inspector.metrics.tools.noTiming")}`
+								: ` · ${formatDurationMs(row.totalDurationMs)}`}
+							{row.failedCalls > 0 ? ` · ${t("inspector.metrics.tools.failed", { count: row.failedCalls })}` : ""}
+						</span>
+					</li>
+				))}
+			</ul>
+		</Section>
 	);
 }
 
