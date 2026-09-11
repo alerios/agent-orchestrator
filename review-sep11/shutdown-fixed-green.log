@@ -1,0 +1,6 @@
+=== RUN   TestSep11FailedShutdownMustNotInvalidateSurvivingHostBrowserToken
+    sep11_shutdown_error_test.go:101: edit error=edit delivery is uncertain: prepare edited conversation: close source writer after fork: read shutdown acknowledgement: connection reset by peer
+        confirm source stopped before failed native edit recovery: read shutdown acknowledgement: connection reset by peer; hostAlive=true; rotations=1; reattachments=0; replacementPublished=false
+--- PASS: TestSep11FailedShutdownMustNotInvalidateSurvivingHostBrowserToken (1.25s)
+PASS
+ok  	github.com/aoagents/agent-orchestrator/backend/internal/service/chat	2.092s

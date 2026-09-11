@@ -1,0 +1,5 @@
+--- FAIL: TestCompletedEditRepairsReceiptAfterControllerRestart (0.39s)
+    history_test.go:2366: completed edit recovery = {SourceBranchID: ActiveBranchID: Turn:{ID: ConversationID: BranchID: HandledBySessionID: ProviderTurnID: RetryOfTurnID: HasRetryAttempt:false State: ErrorMessage: RequestedAt:0001-01-01 00:00:00 +0000 UTC StartedAt:<nil> CompletedAt:<nil> RolledBackAt:<nil> Diff:<nil> Plan:<nil>}}, edit delivery is uncertain; want original turn edit-id-10
+FAIL
+FAIL	github.com/aoagents/agent-orchestrator/backend/internal/service/chat	1.248s
+FAIL

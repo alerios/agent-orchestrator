@@ -1,0 +1,8 @@
+{
+  "base": "2545726021959441e11732227ca939b74e1cef52",
+  "head": "fabbcd6ada7f68e244a07b423f6401d6608e43b2",
+  "mergeBase": "8343bcc089982e202f0fbc37ff43aa09de3110d4",
+  "tree": "8ab2ff22f797459c9c14c8288a8476bc993d3498",
+  "result": "clean",
+  "method": "git merge-tree --write-tree origin/main codex/fix-xterm-disposal"
+}

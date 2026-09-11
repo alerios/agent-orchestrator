@@ -1,0 +1,93 @@
+
+ RUN  v4.1.8 /private/tmp/pr4463-split/queue/frontend
+
+ ❯ src/renderer/components/chat/ChatQueuedAttachments.test.tsx (36 tests | 4 failed | 32 skipped) 811ms
+     × unlocks a recovered queued edit after definitive CHAT_TURN_NOT_QUEUED 408ms
+     × unlocks a recovered queued edit after definitive CHAT_QUEUED_EDIT_CONFLICT 137ms
+     × unlocks a recovered queued edit after definitive CHAT_QUEUED_CONTENT_INVALID 139ms
+     × unlocks a recovered queued edit after definitive CHAT_QUEUED_TEXT_REQUIRED 125ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/renderer/components/chat/ChatQueuedAttachments.test.tsx > queued message attachments > unlocks a recovered queued edit after definitive CHAT_TURN_NOT_QUEUED
+AssertionError: expected 'dd82fa52-ab88-4e46-b8d1-1b088cbfe57f' to be undefined
+
+- Expected:
+undefined
+
++ Received:
+"dd82fa52-ab88-4e46-b8d1-1b088cbfe57f"
+
+ ❯ src/renderer/components/chat/ChatQueuedAttachments.test.tsx:108:83
+    106|   await screen.findByText("Edit was not accepted");
+    107|   expect(readChatSessionDraft(chatFixture.sessionId).queuedEdit).toMat…
+    108|   expect(readChatSessionDraft(chatFixture.sessionId).queuedEdit?.clien…
+       |                                                                                   ^
+    109|   expect(screen.getByRole("button", { name: "Cancel edit" })).toBeEnab…
+    110|   await userEvent.click(screen.getByRole("button", { name: "Cancel edi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/renderer/components/chat/ChatQueuedAttachments.test.tsx > queued message attachments > unlocks a recovered queued edit after definitive CHAT_QUEUED_EDIT_CONFLICT
+AssertionError: expected '03722591-4a04-4964-9db1-8a85ff0cb7c2' to be undefined
+
+- Expected:
+undefined
+
++ Received:
+"03722591-4a04-4964-9db1-8a85ff0cb7c2"
+
+ ❯ src/renderer/components/chat/ChatQueuedAttachments.test.tsx:108:83
+    106|   await screen.findByText("Edit was not accepted");
+    107|   expect(readChatSessionDraft(chatFixture.sessionId).queuedEdit).toMat…
+    108|   expect(readChatSessionDraft(chatFixture.sessionId).queuedEdit?.clien…
+       |                                                                                   ^
+    109|   expect(screen.getByRole("button", { name: "Cancel edit" })).toBeEnab…
+    110|   await userEvent.click(screen.getByRole("button", { name: "Cancel edi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/renderer/components/chat/ChatQueuedAttachments.test.tsx > queued message attachments > unlocks a recovered queued edit after definitive CHAT_QUEUED_CONTENT_INVALID
+AssertionError: expected '446ccf29-2c0c-4179-a7ca-cecfbfa44ac6' to be undefined
+
+- Expected:
+undefined
+
++ Received:
+"446ccf29-2c0c-4179-a7ca-cecfbfa44ac6"
+
+ ❯ src/renderer/components/chat/ChatQueuedAttachments.test.tsx:108:83
+    106|   await screen.findByText("Edit was not accepted");
+    107|   expect(readChatSessionDraft(chatFixture.sessionId).queuedEdit).toMat…
+    108|   expect(readChatSessionDraft(chatFixture.sessionId).queuedEdit?.clien…
+       |                                                                                   ^
+    109|   expect(screen.getByRole("button", { name: "Cancel edit" })).toBeEnab…
+    110|   await userEvent.click(screen.getByRole("button", { name: "Cancel edi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/renderer/components/chat/ChatQueuedAttachments.test.tsx > queued message attachments > unlocks a recovered queued edit after definitive CHAT_QUEUED_TEXT_REQUIRED
+AssertionError: expected 'cc656d3e-feb1-4410-8d23-5ed071fcc64f' to be undefined
+
+- Expected:
+undefined
+
++ Received:
+"cc656d3e-feb1-4410-8d23-5ed071fcc64f"
+
+ ❯ src/renderer/components/chat/ChatQueuedAttachments.test.tsx:108:83
+    106|   await screen.findByText("Edit was not accepted");
+    107|   expect(readChatSessionDraft(chatFixture.sessionId).queuedEdit).toMat…
+    108|   expect(readChatSessionDraft(chatFixture.sessionId).queuedEdit?.clien…
+       |                                                                                   ^
+    109|   expect(screen.getByRole("button", { name: "Cancel edit" })).toBeEnab…
+    110|   await userEvent.click(screen.getByRole("button", { name: "Cancel edi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 32 skipped (36)
+   Start at  11:56:54
+   Duration  5.14s (transform 2.04s, setup 375ms, import 2.98s, tests 811ms, environment 828ms)
+

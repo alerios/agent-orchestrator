@@ -1,0 +1,107 @@
+{
+  "previousHead": "8999dbddcc4342755d6096944b2a6cf54e207c3f",
+  "paths": [
+    {
+      "path": "packages/cloud-client",
+      "object": "b775946a4afd0facead46502a7ee8b917b5f9681"
+    },
+    {
+      "path": "contracts/cloud",
+      "object": "6207b39c2c67ccbfa1e5f97c10b5d75538b649a6"
+    },
+    {
+      "path": "packages/product-ui",
+      "object": "d1eb0c743d9ae5cdccc870bd9ef23f9a6f9602b4"
+    },
+    {
+      "path": "frontend/src/landing",
+      "object": "e09f00b5adc068d566c5bc1f6510a94575fca1e3"
+    },
+    {
+      "path": "frontend/native/update-helper",
+      "object": "9b63098f3ba06946af990c63a0cc6e3e66d15b57"
+    },
+    {
+      "path": "frontend/scripts/build-update-helper.mjs",
+      "object": "bc79c2ca3385fe03328fc15409c525da8f0e3dce"
+    },
+    {
+      "path": "frontend/scripts/build-update-helper.node-test.mjs",
+      "object": "0847bbb5497ae19a386f324c8efc698e64849403"
+    },
+    {
+      "path": "frontend/scripts/build-mac-repair-installer.node-test.mjs",
+      "object": "add1624c4e574f52bf187084e40c50c75c36e9f0"
+    },
+    {
+      "path": "frontend/scripts/build-mac-repair-installer.mjs",
+      "object": "1a17c899622c32cf979ad1e551e6d329c8609575"
+    }
+  ],
+  "checks": [
+    {
+      "name": "cloud-generate",
+      "exit": 0
+    },
+    {
+      "name": "cloud-drift",
+      "exit": 0
+    },
+    {
+      "name": "cloud-typecheck",
+      "exit": 0
+    },
+    {
+      "name": "cloud-test",
+      "exit": 0
+    },
+    {
+      "name": "cloud-pack",
+      "exit": 0
+    },
+    {
+      "name": "product-typecheck",
+      "exit": 0
+    },
+    {
+      "name": "product-test",
+      "exit": 0
+    },
+    {
+      "name": "product-pack",
+      "exit": 0
+    },
+    {
+      "name": "landing-icons",
+      "exit": 0
+    },
+    {
+      "name": "browser-runtime",
+      "exit": 0
+    },
+    {
+      "name": "mac-helper-config",
+      "exit": 0
+    },
+    {
+      "name": "mac-repair-guards",
+      "exit": 0
+    },
+    {
+      "name": "mac-helper-x64",
+      "exit": 0
+    },
+    {
+      "name": "mac-helper-x64-verify",
+      "exit": 0
+    },
+    {
+      "name": "mac-helper-arm64",
+      "exit": 0
+    },
+    {
+      "name": "mac-helper-arm64-verify",
+      "exit": 0
+    }
+  ]
+}

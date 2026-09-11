@@ -1,0 +1,5 @@
+--- FAIL: TestReservedEditRecoversAfterControllerStopAndResume (0.80s)
+    history_test.go:1341: retry after controller resume = {SourceBranchID: ActiveBranchID: Turn:{ID: ConversationID: BranchID: HandledBySessionID: ProviderTurnID: RetryOfTurnID: HasRetryAttempt:false State: ErrorMessage: RequestedAt:0001-01-01 00:00:00 +0000 UTC StartedAt:<nil> CompletedAt:<nil> RolledBackAt:<nil> Diff:<nil> Plan:<nil>}}, edit delivery is uncertain; want one accepted replacement
+FAIL
+FAIL	github.com/aoagents/agent-orchestrator/backend/internal/service/chat	3.404s
+FAIL

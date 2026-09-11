@@ -1,0 +1,12 @@
+{
+  "status": 202,
+  "response": {
+    "sourceBranchId": "0d8c2492-0fd0-4905-8812-c8b635aa1988:root",
+    "activeBranchId": "e090a43b-f144-4e77-8586-85000bba6cfc",
+    "turnId": "60cdf1c0-9f9d-4868-baf6-6dd67757ef48",
+    "providerTurnId": "01a08f23-dbcf-7a10-b9ae-ac781500f95b",
+    "state": "running"
+  },
+  "matchingMessages": 1,
+  "flow": "native edit; exit-agent; resume-agent; replay same delivery ID"
+}

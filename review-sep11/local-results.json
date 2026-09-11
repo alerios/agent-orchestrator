@@ -1,0 +1,208 @@
+{
+  "frontend": [
+    {
+      "stage": "queue",
+      "name": "typecheck",
+      "exit": 0,
+      "seconds": 113.3
+    },
+    {
+      "stage": "queue",
+      "name": "e2e-typecheck",
+      "exit": 0,
+      "seconds": 7.9
+    },
+    {
+      "stage": "queue",
+      "name": "vitest",
+      "exit": 1,
+      "seconds": 398.7
+    },
+    {
+      "stage": "queue",
+      "name": "renderer-smoke",
+      "exit": 1,
+      "seconds": 64.8
+    },
+    {
+      "stage": "inline",
+      "name": "typecheck",
+      "exit": 0,
+      "seconds": 119.8
+    },
+    {
+      "stage": "inline",
+      "name": "e2e-typecheck",
+      "exit": 0,
+      "seconds": 14.6
+    },
+    {
+      "stage": "inline",
+      "name": "vitest",
+      "exit": 1,
+      "seconds": 239.7
+    },
+    {
+      "stage": "inline",
+      "name": "renderer-smoke",
+      "exit": 0,
+      "seconds": 142.6
+    },
+    {
+      "stage": "steer",
+      "name": "typecheck",
+      "exit": 0,
+      "seconds": 94.3
+    },
+    {
+      "stage": "steer",
+      "name": "e2e-typecheck",
+      "exit": 0,
+      "seconds": 14.2
+    },
+    {
+      "stage": "steer",
+      "name": "vitest",
+      "exit": 0,
+      "seconds": 252.0
+    },
+    {
+      "stage": "steer",
+      "name": "renderer-smoke",
+      "exit": 0,
+      "seconds": 134.2
+    }
+  ],
+  "reruns": [
+    {
+      "stage": "queue",
+      "name": "vitest",
+      "exit": 0,
+      "seconds": 359.5
+    },
+    {
+      "stage": "inline",
+      "name": "vitest",
+      "exit": 0,
+      "seconds": 345.9
+    },
+    {
+      "stage": "queue",
+      "name": "renderer-smoke",
+      "exit": 0,
+      "seconds": 116.0
+    }
+  ],
+  "backend": [
+    {
+      "name": "go-build",
+      "exit": 0,
+      "seconds": 3.8
+    },
+    {
+      "name": "go-vet",
+      "exit": 0,
+      "seconds": 7.9
+    },
+    {
+      "name": "go-race",
+      "exit": 0,
+      "seconds": 1530.2
+    },
+    {
+      "name": "go-lint",
+      "exit": 0,
+      "log": "final-lint-fixed.log",
+      "note": "A concurrent runner lock rejected the scripted attempt; the final serial pinned linter passed with 0 issues."
+    },
+    {
+      "name": "chatui-regression",
+      "exit": 0,
+      "seconds": 9.9
+    },
+    {
+      "name": "cli-e2e",
+      "exit": 0,
+      "seconds": 22.8
+    }
+  ],
+  "api": [
+    {
+      "stage": "queue",
+      "name": "api",
+      "exit": 0
+    },
+    {
+      "stage": "queue",
+      "name": "sqlc",
+      "exit": 0
+    },
+    {
+      "stage": "queue",
+      "name": "generated-drift",
+      "exit": 0
+    },
+    {
+      "stage": "inline",
+      "name": "api",
+      "exit": 0
+    },
+    {
+      "stage": "inline",
+      "name": "sqlc",
+      "exit": 0
+    },
+    {
+      "stage": "inline",
+      "name": "generated-drift",
+      "exit": 0
+    },
+    {
+      "stage": "steer",
+      "name": "api",
+      "exit": 0
+    },
+    {
+      "stage": "steer",
+      "name": "sqlc",
+      "exit": 0
+    },
+    {
+      "stage": "steer",
+      "name": "generated-drift",
+      "exit": 0
+    }
+  ],
+  "backendFirstAttempt": [
+    {
+      "name": "go-build",
+      "exit": 0,
+      "seconds": 3.8
+    },
+    {
+      "name": "go-vet",
+      "exit": 0,
+      "seconds": 7.9
+    },
+    {
+      "name": "go-race",
+      "exit": 0,
+      "seconds": 1530.2
+    },
+    {
+      "name": "go-lint",
+      "exit": 3,
+      "seconds": 5.3
+    },
+    {
+      "name": "chatui-regression",
+      "exit": 0,
+      "seconds": 9.9
+    },
+    {
+      "name": "cli-e2e",
+      "exit": 0,
+      "seconds": 22.8
+    }
+  ]
+}

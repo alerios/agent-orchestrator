@@ -1,0 +1,8 @@
+--- FAIL: TestMissingEditTurnReplaysOriginalHTTPStatusAfterRestart (0.36s)
+    history_test.go:2318: missing edit response = 400 {"error":"validation","code":"CHAT_EDIT_TURN_INVALID","message":"conversation turn cannot be edited: conversation turn not found: missing","requestId":"Dhruvs-MacBook-Pro.local/qAUBJOaTZX-000002"}
+        , want 404 CHAT_EDIT_TURN_INVALID
+    history_test.go:2320: missing edit response = 400 {"error":"validation","code":"CHAT_EDIT_TURN_INVALID","message":"conversation turn cannot be edited: conversation turn not found: missing","requestId":"Dhruvs-MacBook-Pro.local/qAUBJOaTZX-000003"}
+        , want 404 CHAT_EDIT_TURN_INVALID
+FAIL
+FAIL	github.com/aoagents/agent-orchestrator/backend/internal/service/chat	1.238s
+FAIL

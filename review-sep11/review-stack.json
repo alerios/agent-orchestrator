@@ -1,0 +1,56 @@
+[
+  {
+    "pr": 5105,
+    "stage": "xterm",
+    "cwd": "/tmp/pr4463-split/xterm",
+    "base": "8343bcc089982e202f0fbc37ff43aa09de3110d4",
+    "head": "fabbcd6ada7f68e244a07b423f6401d6608e43b2",
+    "diff": "git diff 8343bcc089982e202f0fbc37ff43aa09de3110d4...fabbcd6ada7f68e244a07b423f6401d6608e43b2",
+    "commits": "fabbcd6ad fix(terminal): defer disposal until viewport initialization drains\n"
+  },
+  {
+    "pr": 5106,
+    "stage": "text",
+    "cwd": "/tmp/pr4463-split/text",
+    "base": "fabbcd6ada7f68e244a07b423f6401d6608e43b2",
+    "head": "ff2440b5df1e7451b28a38c6d86dcb83a9e95898",
+    "diff": "git diff fabbcd6ada7f68e244a07b423f6401d6608e43b2...ff2440b5df1e7451b28a38c6d86dcb83a9e95898",
+    "commits": "ff2440b5d fix: preserve editable drafts after refused first sends\ndb1882c65 fix(chat): persist composer text across lifecycle boundaries\n"
+  },
+  {
+    "pr": 5107,
+    "stage": "attachments",
+    "cwd": "/tmp/pr4463-split/attachments",
+    "base": "ff2440b5df1e7451b28a38c6d86dcb83a9e95898",
+    "head": "92bf1117f67008d10d3de1779bcf2643a7420ebf",
+    "diff": "git diff ff2440b5df1e7451b28a38c6d86dcb83a9e95898...92bf1117f67008d10d3de1779bcf2643a7420ebf",
+    "commits": "92bf1117f fix: restore draft image thumbnails from staged paths\n31402c28d fix(chat): restore staged draft attachments after restart\n"
+  },
+  {
+    "pr": 5109,
+    "stage": "queue",
+    "cwd": "/tmp/pr4463-split/queue",
+    "base": "92bf1117f67008d10d3de1779bcf2643a7420ebf",
+    "head": "16a908352807681007f6d96d13d85f479353e4f2",
+    "diff": "git diff 92bf1117f67008d10d3de1779bcf2643a7420ebf...16a908352807681007f6d96d13d85f479353e4f2",
+    "commits": "16a908352 fix: release queued editors after definitive delivery refusal\naaf6df35e fix: preserve unresolved queued edit receipts across cancel paths\n7edf3fbb2 fix: release attachment metadata for completed queued edits\n4ab83e46c fix(chat): persist queued edits with atomic delivery receipts\n"
+  },
+  {
+    "pr": 5110,
+    "stage": "inline",
+    "cwd": "/tmp/pr4463-split/inline",
+    "base": "16a908352807681007f6d96d13d85f479353e4f2",
+    "head": "e992529fcde291d36e7bcdf023c16b1b3efcd3d0",
+    "diff": "git diff 16a908352807681007f6d96d13d85f479353e4f2...e992529fcde291d36e7bcdf023c16b1b3efcd3d0",
+    "commits": "e992529fc test: simplify shutdown fixture close call\n40bdc0d47 test: retain the receipt when escaping an unavailable queued edit\n320cb92c3 test: allow asynchronous cleanup after refused host shutdown\n0c9cbaa74 fix: require confirmed host shutdown before restoring an edited branch\n46e909ca1 test: register the edit dispatch boundary migration\n1079e44c5 fix: recover inline edits across reservation and host handoff boundaries\n27904e29e fix(chat): recover inline edits with durable branch receipts\n"
+  },
+  {
+    "pr": 5111,
+    "stage": "steer",
+    "cwd": "/tmp/pr4463-split/steer",
+    "base": "e992529fcde291d36e7bcdf023c16b1b3efcd3d0",
+    "head": "c9eb726ad6d218a9baddbd7fde25fddd1591bd12",
+    "diff": "git diff e992529fcde291d36e7bcdf023c16b1b3efcd3d0...c9eb726ad6d218a9baddbd7fde25fddd1591bd12",
+    "commits": "c9eb726ad test: exercise eventual edit recovery in the chat regression gate\n5c4fb75d8 chore(chat): align generated receipt query documentation\n5ce566e0a refactor(chat): keep steer receipts in a focused diff\nfdfe2febc fix(chat): reconcile steer delivery without repeating provider actions\n"
+  }
+]

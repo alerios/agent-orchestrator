@@ -1,0 +1,5 @@
+=== RUN   TestSep11FailedShutdownCanLeaveSameProviderReattachable
+    sep11_host_failure_test.go:51: Shutdown failed (dial tcp 127.0.0.1:57230: connect: connection refused), but the same provider PID 71657 remained alive and reconnectable
+--- PASS: TestSep11FailedShutdownCanLeaveSameProviderReattachable (0.02s)
+PASS
+ok  	github.com/aoagents/agent-orchestrator/backend/internal/adapters/chatdriver/persistenthost	0.651s

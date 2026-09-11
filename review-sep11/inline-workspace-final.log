@@ -1,0 +1,10 @@
+
+ RUN  v4.1.8 /private/tmp/pr4463-split/inline/frontend
+
+Not implemented: Window's scrollTo() method
+
+ Test Files  1 passed (1)
+      Tests  112 passed (112)
+   Start at  12:22:32
+   Duration  41.94s (transform 4.80s, setup 794ms, import 6.60s, tests 30.80s, environment 3.06s)
+

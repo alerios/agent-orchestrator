@@ -1,0 +1,9 @@
+
+ RUN  v4.1.8 /private/tmp/pr4463-split/queue/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  68 passed (68)
+   Start at  12:05:09
+   Duration  14.69s (transform 3.94s, setup 1.42s, import 5.62s, tests 9.65s, environment 2.95s)
+

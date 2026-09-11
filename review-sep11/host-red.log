@@ -1,0 +1,5 @@
+--- FAIL: TestShutdownReleasesHostBeforeFreshReplacement (0.03s)
+    host_test.go:77: shutdown returned before host released descriptor: <nil>
+FAIL
+FAIL	github.com/aoagents/agent-orchestrator/backend/internal/adapters/chatdriver/persistenthost	0.817s
+FAIL
