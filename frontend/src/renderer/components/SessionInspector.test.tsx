@@ -839,11 +839,21 @@ describe("SessionInspector usage", () => {
 		});
 	}
 
+	it("offers a metrics tab and no longer shows usage on the summary tab", async () => {
+		mockUsage(null);
+		renderWithQuery(<SessionInspector session={session([])} />);
+		expect(await screen.findByRole("tab", { name: "Metrics" })).toBeInTheDocument();
+		expect(screen.queryByTestId("session-usage-metrics")).not.toBeInTheDocument();
+		fireEvent.click(screen.getByRole("tab", { name: "Metrics" }));
+		expect(await screen.findByTestId("session-usage-metrics")).toBeInTheDocument();
+	});
+
 	it("shows detailed token statistics only when Developer Mode is enabled", async () => {
 		useUiStore.getState().setDeveloperMode(true);
 		mockUsage(null);
 
 		renderWithQuery(<SessionInspector session={session([])} />);
+		await userEvent.click(await screen.findByRole("tab", { name: "Metrics" }));
 		expect(await screen.findByText("Usage & cost")).toBeInTheDocument();
 		expect(screen.getByText("Tokens processed")).toBeInTheDocument();
 		expect(screen.getByLabelText("1,500 tokens processed")).toBeInTheDocument();
@@ -879,6 +889,7 @@ describe("SessionInspector usage", () => {
 		]);
 
 		renderWithQuery(<SessionInspector session={session([])} />);
+		await userEvent.click(await screen.findByRole("tab", { name: "Metrics" }));
 		const codexDisclosure = await screen.findByRole("button", { name: "Codex usage details" });
 		expect(codexDisclosure.querySelector("img")).toBeInTheDocument();
 
@@ -923,6 +934,7 @@ describe("SessionInspector usage", () => {
 		]);
 
 		renderWithQuery(<SessionInspector session={session([])} />);
+		await userEvent.click(await screen.findByRole("tab", { name: "Metrics" }));
 
 		const section = (await screen.findByText("Usage & cost")).closest(
 			"[data-testid='inspector-section']",
@@ -954,6 +966,7 @@ describe("SessionInspector usage", () => {
 		});
 
 		renderWithQuery(<SessionInspector session={session([])} />);
+		await userEvent.click(await screen.findByRole("tab", { name: "Metrics" }));
 
 		const section = (await screen.findByText("Usage & cost")).closest(
 			"[data-testid='inspector-section']",
@@ -979,6 +992,7 @@ describe("SessionInspector usage", () => {
 		});
 
 		renderWithQuery(<SessionInspector session={session([])} />);
+		await userEvent.click(await screen.findByRole("tab", { name: "Metrics" }));
 		const section = (await screen.findByText("Usage & cost")).closest(
 			"[data-testid='inspector-section']",
 		) as HTMLElement;
@@ -1002,6 +1016,7 @@ describe("SessionInspector usage", () => {
 		});
 
 		renderWithQuery(<SessionInspector session={session([])} />);
+		await userEvent.click(await screen.findByRole("tab", { name: "Metrics" }));
 
 		const section = (await screen.findByText("Usage & cost")).closest(
 			"[data-testid='inspector-section']",
@@ -1028,6 +1043,7 @@ describe("SessionInspector usage", () => {
 		]);
 
 		renderWithQuery(<SessionInspector session={session([])} />);
+		await userEvent.click(await screen.findByRole("tab", { name: "Metrics" }));
 
 		const section = (await screen.findByText("Usage & cost")).closest(
 			"[data-testid='inspector-section']",
@@ -1059,6 +1075,7 @@ describe("SessionInspector usage", () => {
 		]);
 
 		renderWithQuery(<SessionInspector session={session([])} />);
+		await userEvent.click(await screen.findByRole("tab", { name: "Metrics" }));
 
 		const section = (await screen.findByText("Usage & cost")).closest(
 			"[data-testid='inspector-section']",
@@ -1076,6 +1093,7 @@ describe("SessionInspector usage", () => {
 		mockUsage(null);
 
 		renderWithQuery(<SessionInspector session={session([])} />);
+		await userEvent.click(await screen.findByRole("tab", { name: "Metrics" }));
 
 		const section = (await screen.findByText("Usage & cost")).closest(
 			"[data-testid='inspector-section']",
@@ -1732,7 +1750,7 @@ describe("SessionInspector tabs", () => {
     mockCommonGets([], "", [reviewState(1, "needs_review")]);
     renderWithQuery(<SessionInspector session={session([pr(1, "open")])} />);
     const tabs = screen.getAllByRole("tab").map((el) => el.textContent?.trim());
-    expect(tabs).toEqual(["Summary", "Reviews", "Browser", "Files"]);
+    expect(tabs).toEqual(["Summary", "Metrics", "Reviews", "Browser", "Files"]);
     expect(screen.queryByText("Review controls")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("tab", { name: "Reviews" }));
@@ -3701,6 +3719,7 @@ describe("SessionInspector summary reviews", () => {
     expect(screen.queryByRole("tab", { name: /Reviews/ })).not.toBeInTheDocument();
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent?.trim())).toEqual([
       "Summary",
+      "Metrics",
       "Browser",
       "Files",
     ]);
