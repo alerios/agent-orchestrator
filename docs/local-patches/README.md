@@ -64,22 +64,21 @@ for all eight shipped locales.
 
 ### `fix/approval-request-resolution`
 
-An ACP request id embeds literal colons (`acp-request:<hash>:1`). Any client
-that percent-encodes its path correctly sent `acp-request%3A<hash>%3A1`, which
-never matched the unescaped id AO generated, so *every* approval or
-structured-input answer reported the request as no longer pending regardless of
-how fast the user answered. Unescapes the path param before comparison.
-
-Second, narrower half: on a genuinely rejected resolve the UI left a dead
-approval card the user could not get past. Now refetches on error, and retries
+On a genuinely rejected resolve, the UI left a dead approval card the user
+could not get past. Now refetches on error, and retries
 `CHAT_REQUEST_NOT_PENDING` up to three times, since a real user-clicked
 decision can land in the brief window where the daemon's live tracking
-disagrees with its durable pending read model. The retry is scoped to that one
-error code so a superseded or invalid decision still fails fast.
+disagrees with its durable pending read model (e.g. just after an upstream
+reconnect re-parks a request). The retry is scoped to that one error code so a
+superseded or invalid decision still fails fast.
 
-The backend unescaping and the frontend retry could be two PRs. They are kept
-together because they address one reported symptom — an unanswerable approval
-card — and the retry is only reachable because of that error code.
+This branch originally also unescaped request ids containing literal colons
+(an ACP request id like `acp-request:<hash>:1`, correctly percent-encoded by
+any client, never matched AO's own unescaped id). **Upstream independently
+fixed that exact bug** (`conversationRequestID` in `conversations.go`, same
+root cause, different error-code string) before this branch's last rebase —
+dropped here as a pure duplicate rather than resubmitted. Confirms the bug was
+real; only the frontend half remains to submit.
 
 ### `fix/workspace-orchestrator-verification`
 
@@ -112,6 +111,25 @@ Now checks the agent's advertised choices before `session/set_mode` and reports
 tolerate, since an initial mode can legitimately arrive via launch-time flags.
 Also skips `set_mode` entirely when the requested mode already equals the
 current one, so an unchanged setting cannot fail a turn.
+
+**Cross-provider note**: this touches the *shared* `internal/adapters/chatdriver/acp`
+package, not Claude-specific code — 10 provider drivers build on it
+(claudeacp, piacp, cursoracp, kimchiacp, ompacp, droidacp, opencodeacp,
+kimiacp, nativeacp, plus Claude). `legacyMode` is set dynamically per-session
+(whichever ACP agent's initialize response includes legacy mode data), not
+statically per-provider, so any of them could hit this path. Only Claude Code
+and opencode were manually tested end-to-end. Checked before submitting: the
+change builds and all 8 other providers' own test suites still pass, but
+**none of them — including Claude's own `claudeacp` package — had any test
+coverage of mode-switching before or after this patch**, so a passing suite
+confirms no regression elsewhere in that package, not that mode-switching
+itself works for the untested providers. The change can only replace a hard
+protocol error with graceful degradation (skip + `ErrACPSetterUnsupported`,
+the same class Start/Resume already tolerate) for a mode the agent's own live
+catalog doesn't list — the one residual risk is a non-compliant agent that
+would accept a `session/set_mode` call for a mode it doesn't advertise, which
+isn't verifiable without live-testing all 10. Worth flagging explicitly in the
+PR description.
 
 ---
 
