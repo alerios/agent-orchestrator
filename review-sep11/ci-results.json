@@ -244,85 +244,17 @@
     ]
   },
   {
-    "id": 34572824537,
-    "name": "Go",
-    "head_sha": "e992529fcde291d36e7bcdf023c16b1b3efcd3d0",
-    "status": "queued",
-    "conclusion": null,
-    "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824537",
-    "jobs": [
-      {
-        "name": "build-test",
-        "status": "in_progress",
-        "conclusion": null,
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824537/job/103178477339"
-      },
-      {
-        "name": "lint",
-        "status": "in_progress",
-        "conclusion": null,
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824537/job/103178477614"
-      },
-      {
-        "name": "api-drift",
-        "status": "queued",
-        "conclusion": null,
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824537/job/103178477629"
-      },
-      {
-        "name": "windows-workspace",
-        "status": "in_progress",
-        "conclusion": null,
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824537/job/103178477776"
-      }
-    ]
-  },
-  {
-    "id": 34572824509,
-    "name": "CLI E2E",
-    "head_sha": "e992529fcde291d36e7bcdf023c16b1b3efcd3d0",
-    "status": "in_progress",
-    "conclusion": null,
-    "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824509",
-    "jobs": [
-      {
-        "name": "native (macos-latest)",
-        "status": "completed",
-        "conclusion": "success",
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824509/job/103178477523"
-      },
-      {
-        "name": "native (ubuntu-latest)",
-        "status": "in_progress",
-        "conclusion": null,
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824509/job/103178477640"
-      },
-      {
-        "name": "container",
-        "status": "in_progress",
-        "conclusion": null,
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824509/job/103178477663"
-      },
-      {
-        "name": "native (windows-latest)",
-        "status": "in_progress",
-        "conclusion": null,
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824509/job/103178477769"
-      }
-    ]
-  },
-  {
     "id": 34572824370,
     "name": "Frontend",
     "head_sha": "e992529fcde291d36e7bcdf023c16b1b3efcd3d0",
-    "status": "in_progress",
-    "conclusion": null,
+    "status": "completed",
+    "conclusion": "success",
     "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824370",
     "jobs": [
       {
         "name": "renderer-smoke",
-        "status": "in_progress",
-        "conclusion": null,
+        "status": "completed",
+        "conclusion": "success",
         "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824370/job/103178476746"
       },
       {
@@ -333,8 +265,8 @@
       },
       {
         "name": "test",
-        "status": "in_progress",
-        "conclusion": null,
+        "status": "completed",
+        "conclusion": "success",
         "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824370/job/103178477113"
       }
     ]
@@ -356,36 +288,98 @@
     ]
   },
   {
-    "id": 34572821890,
-    "name": "Go",
-    "head_sha": "c9eb726ad6d218a9baddbd7fde25fddd1591bd12",
-    "status": "in_progress",
-    "conclusion": null,
-    "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821890",
+    "id": 34572824509,
+    "name": "CLI E2E",
+    "head_sha": "e992529fcde291d36e7bcdf023c16b1b3efcd3d0",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824509",
     "jobs": [
       {
-        "name": "api-drift",
+        "name": "native (macos-latest)",
         "status": "completed",
         "conclusion": "success",
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821890/job/103178469063"
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824509/job/103178477523"
+      },
+      {
+        "name": "native (ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824509/job/103178477640"
+      },
+      {
+        "name": "container",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824509/job/103178477663"
+      },
+      {
+        "name": "native (windows-latest)",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824509/job/103178477769"
+      }
+    ]
+  },
+  {
+    "id": 34572824537,
+    "name": "Go",
+    "head_sha": "e992529fcde291d36e7bcdf023c16b1b3efcd3d0",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824537",
+    "jobs": [
+      {
+        "name": "build-test",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824537/job/103178477339"
       },
       {
         "name": "lint",
         "status": "completed",
         "conclusion": "success",
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821890/job/103178469271"
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824537/job/103178477614"
+      },
+      {
+        "name": "api-drift",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824537/job/103178477629"
       },
       {
         "name": "windows-workspace",
-        "status": "in_progress",
-        "conclusion": null,
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821890/job/103178469347"
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572824537/job/103178477776"
+      }
+    ]
+  },
+  {
+    "id": 34572821832,
+    "name": "Frontend",
+    "head_sha": "c9eb726ad6d218a9baddbd7fde25fddd1591bd12",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821832",
+    "jobs": [
+      {
+        "name": "test",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821832/job/103178469141"
       },
       {
-        "name": "build-test",
-        "status": "in_progress",
-        "conclusion": null,
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821890/job/103178469355"
+        "name": "renderer-smoke",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821832/job/103178469207"
+      },
+      {
+        "name": "mac-update-helper",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821832/job/103178469292"
       }
     ]
   },
@@ -440,30 +434,36 @@
     ]
   },
   {
-    "id": 34572821832,
-    "name": "Frontend",
+    "id": 34572821890,
+    "name": "Go",
     "head_sha": "c9eb726ad6d218a9baddbd7fde25fddd1591bd12",
-    "status": "in_progress",
-    "conclusion": null,
-    "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821832",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821890",
     "jobs": [
       {
-        "name": "test",
-        "status": "in_progress",
-        "conclusion": null,
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821832/job/103178469141"
-      },
-      {
-        "name": "renderer-smoke",
-        "status": "in_progress",
-        "conclusion": null,
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821832/job/103178469207"
-      },
-      {
-        "name": "mac-update-helper",
+        "name": "api-drift",
         "status": "completed",
         "conclusion": "success",
-        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821832/job/103178469292"
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821890/job/103178469063"
+      },
+      {
+        "name": "lint",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821890/job/103178469271"
+      },
+      {
+        "name": "windows-workspace",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821890/job/103178469347"
+      },
+      {
+        "name": "build-test",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/Untrivial-ai/agent-orchestrator/actions/runs/34572821890/job/103178469355"
       }
     ]
   }
