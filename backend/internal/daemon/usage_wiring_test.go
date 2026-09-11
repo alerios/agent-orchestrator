@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -31,7 +32,7 @@ func TestUsagePipelineWatchRootsIncludesKimiWrites(t *testing.T) {
 		KimiHome:       kimiHome,
 	}
 	watcher, err := usagepipeline.NewTranscriptWatcher(
-		context.Background(), usagePipelineWatchRoots(roots),
+		context.Background(), usagePipelineWatchRoots(roots, slog.Default()),
 	)
 	if err != nil {
 		t.Fatalf("create usage watcher: %v", err)
@@ -85,7 +86,7 @@ func TestUsagePipelineWatchRootsIncludesOpenCodeWrites(t *testing.T) {
 		OpenCodeHome:   openCodeHome,
 	}
 	watcher, err := usagepipeline.NewTranscriptWatcher(
-		context.Background(), usagePipelineWatchRoots(roots),
+		context.Background(), usagePipelineWatchRoots(roots, slog.Default()),
 	)
 	if err != nil {
 		t.Fatalf("create usage watcher: %v", err)

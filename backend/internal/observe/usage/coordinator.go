@@ -21,6 +21,7 @@ const (
 type coordinatorStore interface {
 	ListWatchableUsageSources(context.Context) ([]domain.UsageSourceRecord, error)
 	HasPendingUsageDiscovery(context.Context) (bool, error)
+	GetUsageSourceForIngestion(context.Context, int64) (domain.UsageSourceContext, bool, error)
 }
 
 type sourceIngestor interface {
@@ -135,20 +136,42 @@ func (c *Coordinator) NotifyInventoryChanged() {
 }
 
 // dispatchIngest routes an opencode_db-kind source to the database collector
-// and every other source to the file Ingestor, exactly as before. A source
-// whose kind is not yet known (never seen by an inventory refresh) falls
-// through to the file Ingestor, matching prior behavior for all non-opencode
-// harnesses.
+// and every other source to the file Ingestor. The sourceKinds cache is only
+// a fast path: it is pruned by refreshInventory as sources retire, and a
+// final ingest for a retiring source can be dequeued after its cache entry
+// is gone. So a cache miss never assumes "file" — it falls back to a live
+// store lookup of the source's actual kind. If the store lookup also fails
+// or the source no longer exists, that's handled the same way the file
+// Ingestor already tolerates a vanished source.
 func (c *Coordinator) dispatchIngest(ctx context.Context, sourceID int64) (IngestResult, error) {
-	if kindVal, ok := c.sourceKinds.Load(sourceID); ok {
-		if kind, _ := kindVal.(domain.UsageSourceKind); kind == domain.UsageSourceOpenCodeDB {
-			if c.openCode == nil {
-				return IngestResult{}, nil
-			}
-			return IngestResult{}, c.openCode.Collect(ctx, sourceID)
+	kind, known := c.lookupSourceKind(ctx, sourceID)
+	if known && kind == domain.UsageSourceOpenCodeDB {
+		if c.openCode == nil {
+			return IngestResult{}, nil
 		}
+		return IngestResult{}, c.openCode.Collect(ctx, sourceID)
 	}
 	return c.ingestor.Ingest(ctx, sourceID)
+}
+
+// lookupSourceKind resolves a source's kind, preferring the in-memory cache
+// populated by inventory refreshes but falling back to a direct store read
+// on a cache miss so a pruned-but-still-in-flight source is never
+// misclassified as a file source. The second return value is false when the
+// kind could not be determined (store error or the source no longer exists),
+// in which case the caller should fall through to existing vanished-source
+// handling rather than assume a kind.
+func (c *Coordinator) lookupSourceKind(ctx context.Context, sourceID int64) (domain.UsageSourceKind, bool) {
+	if kindVal, ok := c.sourceKinds.Load(sourceID); ok {
+		if kind, ok := kindVal.(domain.UsageSourceKind); ok {
+			return kind, true
+		}
+	}
+	source, ok, err := c.store.GetUsageSourceForIngestion(ctx, sourceID)
+	if err != nil || !ok {
+		return "", false
+	}
+	return source.Source.Kind, true
 }
 
 // ingestSourceForTest routes a fully-known source record by kind, bypassing

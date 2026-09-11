@@ -265,6 +265,17 @@ func (s *coordinatorTestStore) HasPendingUsageDiscovery(context.Context) (bool, 
 	return false, nil
 }
 
+func (s *coordinatorTestStore) GetUsageSourceForIngestion(_ context.Context, id int64) (domain.UsageSourceContext, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, src := range s.sources {
+		if src.ID == id {
+			return domain.UsageSourceContext{Source: src}, true, nil
+		}
+	}
+	return domain.UsageSourceContext{}, false, nil
+}
+
 type coordinatorTestIngestor func(context.Context, int64) (IngestResult, error)
 
 func (f coordinatorTestIngestor) Ingest(ctx context.Context, sourceID int64) (IngestResult, error) {
@@ -505,4 +516,68 @@ func TestCoordinatorPrunesSourceKindsForRetiredSources(t *testing.T) {
 	}
 
 	stopCoordinatorTest(t, cancel, done)
+}
+
+// TestDispatchIngestFallsBackToStoreOnSourceKindsMiss reproduces the N1 race:
+// refreshInventory can prune a retiring source's sourceKinds entry while a
+// final ingest for that same source is still queued/dirty. If dispatchIngest
+// dequeues after the prune, it must not assume "unknown kind = file" — it
+// must consult the store and still route an opencode_db source to the
+// OpenCode collector rather than the file Ingestor.
+func TestDispatchIngestFallsBackToStoreOnSourceKindsMiss(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "opencode.db")
+	source := watchableTestSource(42, path)
+	source.Kind = domain.UsageSourceOpenCodeDB
+	store := &coordinatorTestStore{sources: []domain.UsageSourceRecord{source}}
+
+	fileIngests := 0
+	ingestor := coordinatorTestIngestor(func(context.Context, int64) (IngestResult, error) {
+		fileIngests++
+		return IngestResult{}, nil
+	})
+	openCode := &fakeOpenCodeCollector{}
+
+	coordinator := NewCoordinator(store, ingestor, newCoordinatorTestWatcher(), CoordinatorConfig{OpenCode: openCode})
+
+	// Simulate refreshInventory having learned the source's kind...
+	coordinator.sourceKinds.Store(int64(42), domain.UsageSourceOpenCodeDB)
+	// ...then pruning it because the source is retiring, exactly as
+	// refreshInventory does when the source drops out of the "live" set,
+	// while a final ingest for source 42 is still in flight.
+	coordinator.sourceKinds.Delete(int64(42))
+
+	if _, err := coordinator.dispatchIngest(context.Background(), 42); err != nil {
+		t.Fatalf("dispatchIngest: %v", err)
+	}
+
+	if got := openCode.callCount(); got != 1 {
+		t.Fatalf("openCode calls = %d, want 1 (must resolve kind via store fallback)", got)
+	}
+	if fileIngests != 0 {
+		t.Fatalf("file ingests = %d, want 0 (opencode source must never reach the file Ingestor)", fileIngests)
+	}
+}
+
+// TestDispatchIngestFallsBackToFileIngestorWhenSourceVanished confirms that
+// when neither the sourceKinds cache nor the store can resolve a source's
+// kind (it truly no longer exists), dispatchIngest falls through to the file
+// Ingestor's existing vanished-source handling rather than erroring itself.
+func TestDispatchIngestFallsBackToFileIngestorWhenSourceVanished(t *testing.T) {
+	store := &coordinatorTestStore{}
+	fileIngests := 0
+	ingestor := coordinatorTestIngestor(func(context.Context, int64) (IngestResult, error) {
+		fileIngests++
+		return IngestResult{}, nil
+	})
+	openCode := &fakeOpenCodeCollector{}
+
+	coordinator := NewCoordinator(store, ingestor, newCoordinatorTestWatcher(), CoordinatorConfig{OpenCode: openCode})
+
+	if _, err := coordinator.dispatchIngest(context.Background(), 999); err != nil {
+		t.Fatalf("dispatchIngest: %v", err)
+	}
+
+	if fileIngests != 1 || openCode.callCount() != 0 {
+		t.Fatalf("ingests = (file %d, db %d), want (1, 0) for a fully vanished source", fileIngests, openCode.callCount())
+	}
 }

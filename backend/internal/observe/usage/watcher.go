@@ -208,9 +208,12 @@ func (w *TranscriptWatcher) handleEvent(ctx context.Context, event fsnotify.Even
 
 // isWatchableTranscriptExt reports whether path has an extension this
 // watcher forwards events for: ".jsonl" for every hook-driven transcript
-// harness, plus ".db" for opencode's shared SQLite database (and its
-// WAL-mode sidecar, ".db-wal", so a write that only touches the sidecar
-// still surfaces promptly instead of waiting for a periodic refresh tick).
+// harness, plus ".db" for opencode's shared SQLite database. ".db-wal" is
+// accepted here too, but only as harmless forward compatibility: the
+// watcher exact-watches individual registered source artifact_paths, and
+// "opencode.db-wal" is never itself registered as a source path, so this
+// extension is not currently reachable — no ".db-wal" filename is ever
+// added to the watch set today.
 func isWatchableTranscriptExt(path string) bool {
 	switch filepath.Ext(path) {
 	case ".jsonl", ".db", ".db-wal":

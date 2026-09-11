@@ -632,7 +632,7 @@ func Run() error {
 			}
 			return path, true
 		})
-		usagePipeline = usagepipeline.NewPipeline(store, ingestor, usagePipelineWatchRoots(roots), usagepipeline.CoordinatorConfig{
+		usagePipeline = usagepipeline.NewPipeline(store, ingestor, usagePipelineWatchRoots(roots, log), usagepipeline.CoordinatorConfig{
 			Logger:     log,
 			Initialize: usageCollector.BackfillActive,
 			Reconcile: func(reconcileCtx context.Context) error {
@@ -961,21 +961,29 @@ func installedAgentHarness(target systeminstall.Target) (string, bool) {
 	return "", false
 }
 
-func usagePipelineWatchRoots(roots usagesvc.SourceRoots) []string {
-	all := []string{
-		roots.ClaudeProjects,
-		roots.CodexSessions,
-		roots.CodexArchived,
-		roots.KimiHome,
-		// OpenCodeHome is the directory containing opencode.db (and its
-		// WAL-mode sidecar files such as opencode.db-wal). Watching the
-		// containing directory, like every other root here, sees both.
-		roots.OpenCodeHome,
+func usagePipelineWatchRoots(roots usagesvc.SourceRoots, log *slog.Logger) []string {
+	all := []struct {
+		name string
+		root string
+	}{
+		{"claude_projects", roots.ClaudeProjects},
+		{"codex_sessions", roots.CodexSessions},
+		{"codex_archived", roots.CodexArchived},
+		{"kimi_home", roots.KimiHome},
+		// OpenCodeHome authorizes fsnotify events for opencode.db (and,
+		// forward-compatibly, its WAL-mode sidecar files such as
+		// opencode.db-wal) once those paths are registered as sources under
+		// it; it is not itself watched as a directory.
+		{"opencode_home", roots.OpenCodeHome},
 	}
 	watchRoots := make([]string, 0, len(all))
-	for _, root := range all {
-		if strings.TrimSpace(root) != "" {
-			watchRoots = append(watchRoots, root)
+	for _, entry := range all {
+		if strings.TrimSpace(entry.root) != "" {
+			watchRoots = append(watchRoots, entry.root)
+			continue
+		}
+		if log != nil {
+			log.Warn("usage pipeline watch root empty; harness will not be fsnotify-watched", "harness", entry.name)
 		}
 	}
 	return watchRoots
