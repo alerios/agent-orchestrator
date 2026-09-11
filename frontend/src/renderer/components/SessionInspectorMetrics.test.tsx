@@ -12,8 +12,13 @@ vi.mock("../hooks/useSessionEffort", () => ({
 	useSessionEffort: () => mockEffort,
 }));
 
+vi.mock("../hooks/useConversation", () => ({
+	useConversation: () => ({ snapshot: mockConversation }),
+}));
+
 let mockUsage: unknown;
 let mockEffort: unknown = { data: undefined, isError: false, isLoading: false };
+let mockConversation: { usage?: unknown; rateLimits?: unknown } | undefined = undefined;
 
 const baseEffort = {
 	activeMs: null,
@@ -151,5 +156,55 @@ describe("MetricsView", () => {
 		mockEffort = { data: undefined, isError: true, isLoading: false };
 		render(<MetricsView session={session} />);
 		expect(screen.getByText(/No effort data recorded for this session yet/i)).toBeInTheDocument();
+	});
+
+	it("shows the context meter and compaction count", () => {
+		mockConversation = {
+			usage: {
+				cachedTokens: 0,
+				contextUsed: 67000,
+				contextWindow: 100000,
+				inputTokens: 67000,
+				outputTokens: 0,
+				totalTokens: 67000,
+			},
+		};
+		mockEffort = {
+			data: { effort: { ...baseEffort, compactions: 2 }, toolMix: [] },
+			isError: false,
+			isLoading: false,
+		};
+		render(<MetricsView session={session} />);
+		expect(screen.getByText(/Context health/i)).toBeInTheDocument();
+		expect(screen.getByTestId("context-compactions")).toHaveTextContent("2");
+		// Advisory, never a failure.
+		expect(screen.getByText(/informational/i)).toBeInTheDocument();
+	});
+
+	it("states that context usage is unreported rather than showing an empty meter", () => {
+		mockConversation = { usage: undefined };
+		mockEffort = { data: { effort: baseEffort, toolMix: [] }, isError: false, isLoading: false };
+		render(<MetricsView session={session} />);
+		expect(screen.getByText(/not reported for this session/i)).toBeInTheDocument();
+	});
+
+	it("says there have been no compactions rather than rendering a bare zero", () => {
+		mockConversation = {
+			usage: {
+				cachedTokens: 0,
+				contextUsed: 1000,
+				contextWindow: 100000,
+				inputTokens: 1000,
+				outputTokens: 0,
+				totalTokens: 1000,
+			},
+		};
+		mockEffort = {
+			data: { effort: { ...baseEffort, compactions: 0 }, toolMix: [] },
+			isError: false,
+			isLoading: false,
+		};
+		render(<MetricsView session={session} />);
+		expect(screen.getByText(/No compactions yet/i)).toBeInTheDocument();
 	});
 });

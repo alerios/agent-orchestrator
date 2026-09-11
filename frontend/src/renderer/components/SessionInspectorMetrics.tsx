@@ -3,12 +3,15 @@ import { useId, useState, type ReactNode } from "react";
 import { InspectorSection as Section, inspectorEmptyClass } from "@aoagents/product-ui";
 import { ChevronDown, ChevronRight, Info } from "lucide-react";
 import { AgentAvatar } from "./AgentAvatar";
+import { ContextMeter } from "./chat/ContextMeter";
+import { useConversation } from "../hooks/useConversation";
 import { useSessionEffort, type SessionEffort } from "../hooks/useSessionEffort";
 import { useSessionUsage, type SessionUsage } from "../hooks/useSessionUsage";
 import { formatEstimatedCost, type EstimatedCost } from "../lib/format-cost";
 import { formatDurationMs } from "../lib/format-time";
 import { formatTokenCount } from "../lib/format-token-count";
 import type { MessageKey } from "../i18n";
+import type { ConversationRateLimits, ConversationUsage } from "../types/conversation";
 import type { WorkspaceSession } from "../types/workspace";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
@@ -20,6 +23,7 @@ export function MetricsView({ session }: { session: WorkspaceSession }) {
 	const hasUsage = hasMeaningfulSessionUsage(usage);
 	const effortQuery = useSessionEffort(session.id, true);
 	const effortData = effortQuery.data;
+	const { snapshot } = useConversation(session.id);
 	return (
 		<TooltipProvider>
 			<div role="tabpanel">
@@ -40,6 +44,13 @@ export function MetricsView({ session }: { session: WorkspaceSession }) {
 						<p className={inspectorEmptyClass}>{t("inspector.metrics.noData")}</p>
 					</Section>
 				)}
+				{effortData ? (
+					<ContextHealthBlock
+						compactions={effortData.effort.compactions}
+						rateLimits={snapshot?.rateLimits}
+						usage={snapshot?.usage}
+					/>
+				) : null}
 				{effortQuery.isLoading ? null : effortQuery.isError ? (
 					<Section title={t("inspector.metrics.effort.title")}>
 						<p className={inspectorEmptyClass}>{t("inspector.metrics.effort.noData")}</p>
@@ -61,6 +72,40 @@ export function MetricsView({ session }: { session: WorkspaceSession }) {
 				) : null}
 			</div>
 		</TooltipProvider>
+	);
+}
+
+function ContextHealthBlock({
+	compactions,
+	usage,
+	rateLimits,
+}: {
+	compactions: number;
+	usage?: ConversationUsage;
+	rateLimits?: ConversationRateLimits;
+}) {
+	const { t } = useTranslation();
+	return (
+		<Section title={t("inspector.metrics.context.title")}>
+			{usage ? (
+				<ContextMeter rateLimits={rateLimits} usage={usage} />
+			) : (
+				<p className={inspectorEmptyClass}>{t("inspector.metrics.context.unavailable")}</p>
+			)}
+			{compactions > 0 ? (
+				<div className="mt-1.5 flex items-baseline justify-between gap-2">
+					<span className="text-2xs text-settings-muted">{t("inspector.metrics.context.compactions")}</span>
+					<span className="font-semibold" data-testid="context-compactions">
+						{compactions}
+					</span>
+				</div>
+			) : (
+				<p className={`mt-1.5 ${inspectorEmptyClass}`}>{t("inspector.metrics.context.none")}</p>
+			)}
+			{/* Context pressure is advisory. Saying so prevents a full meter from
+			    reading as a broken session. */}
+			<p className={`mt-1 ${inspectorEmptyClass}`}>{t("inspector.metrics.context.advisory")}</p>
+		</Section>
 	);
 }
 
