@@ -186,10 +186,9 @@ that is no longer wanted.
 patch file, plus a bundle of the branches) is in
 `~/ao-patch-backup-20260911-103017/`.
 
-## Related
+## Building, running, and submitting
 
-Building and installing these patches as a local `.deb` that replaces the
-official install is documented separately, in the `aep-agent-orchestration`
-repo: `LOCAL_AO_PATCH.md`. That doc covers only
-`feat/orchestrator-rules-file`; the installed build now predates the four
-other branches.
+See [`BUILDING.md`](BUILDING.md) in this directory: running with `npm run dev`,
+building a `.deb`, keeping branches current against fast-moving upstream, and
+opening a PR from the personal fork (`alerios/agent-orchestrator`) once a
+patch is ready.
