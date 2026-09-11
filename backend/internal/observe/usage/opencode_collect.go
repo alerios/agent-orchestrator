@@ -91,16 +91,19 @@ func (c *OpenCodeCollector) Collect(ctx context.Context, sourceID int64) error {
 		return c.fail(ctx, source, domain.UsageErrorInvalidParserState, now)
 	}
 
+	// Tool-call persistence is a secondary, best-effort telemetry concern: a
+	// failure here must never block this poll's usage/cost events from
+	// committing via ApplyUsageChunk below. Capture the error and record it
+	// afterward instead of returning early.
 	toolCalls := make([]domain.SessionToolCall, 0, len(parts))
 	for _, part := range parts {
 		if call, ok := decodeOpenCodeToolCall(source.SessionID, part, now); ok {
 			toolCalls = append(toolCalls, call)
 		}
 	}
+	var toolCallErr error
 	if len(toolCalls) > 0 {
-		if err := c.store.UpsertSessionToolCalls(ctx, toolCalls); err != nil {
-			return c.fail(ctx, source, domain.UsageErrorSourceReadFailed, now)
-		}
+		toolCallErr = c.store.UpsertSessionToolCalls(ctx, toolCalls)
 	}
 
 	// ByteOffset is meaningless for a database source and stays zero; the real
@@ -117,12 +120,15 @@ func (c *OpenCodeCollector) Collect(ctx context.Context, sourceID int64) error {
 		return err
 	}
 
+	if toolCallErr != nil {
+		return c.fail(ctx, source, domain.UsageErrorSourceReadFailed, now)
+	}
+
 	stored, err := c.store.ListSessionToolCalls(ctx, source.SessionID)
 	if err != nil {
 		return nil
 	}
-	compactions := openCodeCompactionCount(parts)
-	effort := deriveEffort(stored, firstObserved(stored), lastObserved(stored), compactions)
+	effort := deriveEffort(stored, firstObserved(stored), lastObserved(stored), state.Compactions)
 	effort.FilesChanged = session.SummaryFiles
 	effort.LinesAdded = session.SummaryAdditions
 	effort.LinesRemoved = session.SummaryDeletions

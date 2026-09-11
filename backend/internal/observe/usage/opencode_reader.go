@@ -20,6 +20,7 @@ type openCodeParserStateV1 struct {
 	EmittedCacheRead     int64  `json:"emitted_cache_read"`
 	EmittedCacheWrite    int64  `json:"emitted_cache_write"`
 	EmittedReasoning     int64  `json:"emitted_reasoning"`
+	Compactions          int64  `json:"compactions"`
 }
 
 // readOpenCode turns one poll of opencode's database into usage events and a
@@ -43,6 +44,13 @@ func readOpenCode(
 	if nextSeq > state.LastSeq {
 		state.LastSeq = nextSeq
 	}
+
+	// parts here are only the NEW parts since the last poll (partsAfter
+	// returns a strictly-greater-than-LastSeq slice), so this poll's
+	// compaction count is a delta. Accumulate it into the durable state so
+	// the session-lifetime total survives polls that see zero new
+	// compaction parts, rather than being overwritten per-poll.
+	state.Compactions += openCodeCompactionCount(parts)
 
 	if event, ok := openCodeDeltaEvent(source, session, now, state, &result); ok {
 		result.Events = append(result.Events, event)

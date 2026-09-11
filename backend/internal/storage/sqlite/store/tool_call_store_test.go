@@ -108,3 +108,59 @@ func TestSessionEffortRoundTripsUnavailableTiming(t *testing.T) {
 		t.Fatal("TimingAvailable = true, want false")
 	}
 }
+
+// TestUpsertSessionToolCallCoalescePreservesGoodData proves that re-applying
+// the same tool call identity (session_id, source_kind, provider_call_id)
+// with less information — e.g. a stale in-flight snapshot with null timing —
+// never clobbers previously-recorded good data. The upsert SQL's
+// COALESCE(excluded.X, session_tool_calls.X) on ended_at/duration_ms/exit_code
+// exists exactly for this; this test is the regression guard for it.
+func TestUpsertSessionToolCallCoalescePreservesGoodData(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	duration := int64(4215)
+	started := time.UnixMilli(1_773_336_859_125).UTC()
+	ended := time.UnixMilli(1_773_336_863_340).UTC()
+	exitCode := int64(0)
+
+	complete := domain.SessionToolCall{
+		DurationMS: &duration, EndedAt: &ended, ExitCode: &exitCode,
+		InputSummary: "npm test", ObservedAt: ended, Outcome: domain.ToolOutcomeCompleted,
+		ProviderCallID: "call_a", SessionID: "sess-1",
+		SourceKind: domain.UsageSourceOpenCodeDB, StartedAt: &started, ToolName: "bash",
+	}
+	if err := store.UpsertSessionToolCalls(ctx, []domain.SessionToolCall{complete}); err != nil {
+		t.Fatalf("initial UpsertSessionToolCalls: %v", err)
+	}
+
+	// A stale re-read of the same call, still in flight: same identity, but
+	// ended_at/duration_ms/exit_code are unknown (nil) this time.
+	staleReRead := domain.SessionToolCall{
+		DurationMS: nil, EndedAt: nil, ExitCode: nil,
+		InputSummary: "npm test", ObservedAt: ended, Outcome: domain.ToolOutcomeCompleted,
+		ProviderCallID: "call_a", SessionID: "sess-1",
+		SourceKind: domain.UsageSourceOpenCodeDB, StartedAt: &started, ToolName: "bash",
+	}
+	if err := store.UpsertSessionToolCalls(ctx, []domain.SessionToolCall{staleReRead}); err != nil {
+		t.Fatalf("stale re-read UpsertSessionToolCalls: %v", err)
+	}
+
+	got, err := store.ListSessionToolCalls(ctx, "sess-1")
+	if err != nil {
+		t.Fatalf("ListSessionToolCalls: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("len(calls) = %d, want 1", len(got))
+	}
+	call := got[0]
+	if call.DurationMS == nil || *call.DurationMS != duration {
+		t.Fatalf("DurationMS = %v, want %d preserved from the original completed call", call.DurationMS, duration)
+	}
+	if call.EndedAt == nil || !call.EndedAt.Equal(ended) {
+		t.Fatalf("EndedAt = %v, want %v preserved from the original completed call", call.EndedAt, ended)
+	}
+	if call.ExitCode == nil || *call.ExitCode != exitCode {
+		t.Fatalf("ExitCode = %v, want %d preserved from the original completed call", call.ExitCode, exitCode)
+	}
+}
