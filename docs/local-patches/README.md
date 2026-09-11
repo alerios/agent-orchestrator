@@ -12,6 +12,17 @@ Nothing here has been submitted upstream. No issues have been filed.
 
 ## Patches
 
+**Status: all 5 submitted upstream (2026-09-11).**
+
+| Branch | PR |
+|---|---|
+| `feat/orchestrator-rules-file` | [Untrivial-ai/agent-orchestrator#5256](https://github.com/Untrivial-ai/agent-orchestrator/pull/5256) |
+| `fix/opencode-model-refresh` | [#5257](https://github.com/Untrivial-ai/agent-orchestrator/pull/5257) |
+| `fix/approval-request-resolution` | [#5258](https://github.com/Untrivial-ai/agent-orchestrator/pull/5258) |
+| `fix/workspace-orchestrator-verification` | [#5259](https://github.com/Untrivial-ai/agent-orchestrator/pull/5259) |
+| `fix/model-dependent-session-mode` | [#5260](https://github.com/Untrivial-ai/agent-orchestrator/pull/5260) — flagged as needing review from maintainers of the other 9 ACP-based providers; see its section below |
+
+
 | Branch | Fixes | Verified | Upstream-ready |
 |---|---|---|---|
 | `feat/orchestrator-rules-file` | orchestrator rules can live in a git-tracked file; adds a manual Restart action | build + 152 FE + BE tests | yes, but see note |
