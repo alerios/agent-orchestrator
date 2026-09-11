@@ -8,7 +8,7 @@ without dragging the others along.
 into a patch branch and never include it in a PR.** It exists so the index
 itself is version-controlled next to the code it describes.
 
-Nothing here has been submitted upstream. No issues have been filed.
+All 5 branches below are now open as PRs upstream (see table). No issues were filed separately — the PRs themselves carry the context.
 
 ## Patches
 
