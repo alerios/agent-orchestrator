@@ -26,9 +26,11 @@ Three concrete failures motivate this work:
    progressing, there is nothing to inspect.
 
 Separately, `ai-code-show-and-tell` scores finished sessions for AI-usage
-efficiency and business impact by parsing transcripts after the fact. Those
-judgments are more useful while work is in flight, and AO holds better
-evidence for them than a transcript does.
+efficiency by parsing transcripts after the fact, using a model for most of its
+rubric. Those judgments are more useful while work is in flight — and for the
+efficiency half of that rubric, AO holds strictly better evidence than a
+transcript does, well enough to compute the scores outright instead of asking a
+model to infer them.
 
 ## Goals
 
@@ -41,8 +43,8 @@ evidence for them than a transcript does.
   and Codex.
 - Record tool-call telemetry as durable, queryable facts for every harness
   whose source exposes them.
-- Compute efficiency scores from structured data with **zero** LLM cost, and
-  offer the qualitative factors as a single explicit on-demand purchase.
+- Compute efficiency scores entirely from structured data, at **zero** LLM
+  cost. No model is ever called by this feature.
 - Never fabricate. Absent evidence renders as unavailable, never as zero.
 
 ## Non-goals
@@ -62,6 +64,14 @@ evidence for them than a transcript does.
   analytics can reuse the same read models later.
 - **Session parentage.** Not needed; see Decisions.
 - **Retroactive scoring of historical sessions** as a batch job.
+- **LLM-based qualitative scoring.** The four factors from
+  `ai-code-show-and-tell` that require reading prose — prompt clarity, initial
+  context completeness, business impact, cross-session learning — and its
+  narrative and traceability outputs are out of scope. This feature calls no
+  model. Those factors can be added later as an explicit, cached, user-invoked
+  action; nothing in this design forecloses that, because the scoring module
+  is already structured as pure functions over facts and would simply gain a
+  second, optional set of inputs.
 
 ## Decisions
 
@@ -97,12 +107,18 @@ project accumulates **generations**. Project-lifetime totals span all of them.
 The orchestrator Metrics tab therefore shows two clearly separated figures —
 *this orchestrator* and *project all-time across N generations*.
 
-### Zero-LLM by default, one explicit purchase
+### Zero LLM, entirely
 
-Five of the nine rubric factors are computed deterministically from structured
-facts and are always on. The four genuinely qualitative factors require reading
-prose and are computed only when the user presses a button, then cached. The
-Metrics tab itself never costs a token.
+Scoring is restricted to the five rubric factors that are deterministic
+functions of structured facts. The four qualitative factors are dropped (see
+Non-goals). Nothing in this feature calls a model, so the Metrics tab costs
+nothing to open, works offline, needs no API key, and returns the same score
+for the same facts every time.
+
+A consequence worth stating: scores are cheap enough to compute on read from
+the effort rollup and usage events, so they need no table and no cache. This
+also means a rubric threshold change takes effect immediately on every
+session, with no stored scores to migrate or reinterpret.
 
 ## Architecture
 
@@ -126,11 +142,10 @@ flowchart TB
         events[("model_usage_event<br/>existing")]
         tools[("session_tool_call<br/>NEW")]
         effort[("session_effort_rollup<br/>NEW")]
-        scores[("session_score<br/>NEW")]
     end
 
     subgraph svc["service + httpd"]
-        scoring["scoring/<br/>pure functions, NEW"]
+        scoring["scoring/<br/>pure functions, no I/O, NEW"]
         pricing["pricing/<br/>existing"]
         ctl["UsageController<br/>extended"]
     end
@@ -155,9 +170,8 @@ flowchart TB
     events --> scoring
     tools --> scoring
     effort --> scoring
-    scoring --> scores
     pricing --> ctl
-    scores --> ctl
+    scoring --> ctl
     tools --> ctl
     ctl --> mtab
     ctl --> otab
@@ -183,7 +197,7 @@ sequenceDiagram
     Note over I,DB: cursor advances only on commit;<br/>a crash re-reads, never double-counts
     UI->>API: GET session metrics
     API->>DB: read models
-    API->>API: score (pure, cached by rubric version)
+    API->>API: score (pure functions, computed on read)
     API-->>UI: metrics + scores + coverage
 ```
 
@@ -370,10 +384,14 @@ transcript. AO owns delivery outcomes, so the factor *names* are kept — they
 are what stakeholders already recognise — while each is computed from the
 strongest evidence AO actually holds.
 
-The module is pure functions over fact structs, with no I/O, in
-`backend/internal/service/scoring/`.
+Only the five deterministic factors are in scope. The rubric's four
+prose-reading factors are dropped, so the engine never calls a model.
 
-### Always on, zero LLM
+The module is pure functions over fact structs, with no I/O, in
+`backend/internal/service/scoring/`. Scores are computed on read; nothing is
+persisted.
+
+### The five factors
 
 | Factor | Computed from |
 |---|---|
@@ -395,26 +413,12 @@ Each factor yields a 0-100 sub-score **and the raw numbers that produced it**,
 both always rendered. A bare "Token Efficiency: 62" is unfalsifiable, and a
 score the user cannot audit is worse than no score.
 
-Thresholds live in one versioned table inside the module. Every stored score
-records its rubric version, so changing a threshold is a single diff and old
-scores stay interpretable.
-
-### On demand, one LLM call
-
-A single **Analyze session** action adds the four factors that genuinely
-require reading prose — prompt clarity, initial context completeness, business
-impact, cross-session learning — plus the show-and-tell narrative and
-requirement-to-artifact traceability table. The result is cached in
-`session_score` keyed by session and rubric version, so it is paid for once.
-
-Until pressed, the tab states plainly that qualitative factors have not been
-analyzed. Nothing is ever spent in the background.
-
-The call runs through AO's existing reviewer / `autoreview` path rather than a
-new `ANTHROPIC_API_KEY` dependency. AO already knows how to run a configured
-harness against a prompt and collect structured output, and reusing it keeps
-the feature working for a user on a subscription with no API key — something
-the original tool could not do.
+Thresholds and weights live in one table inside the module, carrying a rubric
+version that is reported alongside the scores. Because nothing is stored,
+changing a threshold takes effect everywhere at once and there are no
+historical scores to migrate — but the version is still surfaced so a user
+comparing two screenshots taken weeks apart can tell whether the rubric moved
+underneath them.
 
 ### Refusal to fabricate
 
@@ -488,15 +492,13 @@ sequenceDiagram
 3. **Tool telemetry.** `session_tool_call` and `session_effort_rollup`, the
    effort and tool-mix blocks, opencode timing first, then Claude and Codex
    partial coverage.
-4. **Heuristic scoring.** The scoring module, the five always-on factors, the
-   efficiency block with raw numbers.
+4. **Scoring.** The scoring module, the five factors, the efficiency block
+   with raw numbers beside each score.
 5. **Orchestrator rail.** Project-scoped roll-up, worker list, cost per merged
    PR, generations.
-6. **On-demand analysis.** The qualitative factors and narrative via the
-   reviewer path, cached.
 
-Phases 1 through 5 are independently shippable and each leaves the product in
-a coherent state.
+All five phases are independently shippable and each leaves the product in a
+coherent state.
 
 ## Open questions
 
