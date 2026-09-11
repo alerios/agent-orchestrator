@@ -1839,6 +1839,8 @@ func sourceKindForHarness(harness domain.AgentHarness) (domain.UsageSourceKind, 
 		return domain.UsageSourceCodexRollout, true
 	case domain.HarnessKimi:
 		return domain.UsageSourceKimiWire, true
+	case domain.HarnessOpenCode:
+		return domain.UsageSourceOpenCodeDB, true
 	default:
 		return "", false
 	}

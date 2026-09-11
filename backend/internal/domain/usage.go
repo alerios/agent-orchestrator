@@ -16,6 +16,7 @@ const (
 	UsageSourceClaudeSubagent UsageSourceKind = "claude_subagent"
 	UsageSourceCodexRollout   UsageSourceKind = "codex_rollout"
 	UsageSourceKimiWire       UsageSourceKind = "kimi_wire"
+	UsageSourceOpenCodeDB     UsageSourceKind = "opencode_db"
 )
 
 // UsageBindingState tracks the root native-session binding lifecycle.
@@ -119,6 +120,11 @@ type UsageProviderID string
 const (
 	UsageProviderOpenAI    UsageProviderID = "openai"
 	UsageProviderAnthropic UsageProviderID = "anthropic"
+	// UsageProviderOpenCode is opencode's own usage vocabulary. opencode
+	// reports a normalized token vector and cost per session regardless of
+	// which upstream provider served the model, so its counters are neither
+	// OpenAI's nor Anthropic's shape.
+	UsageProviderOpenCode UsageProviderID = "opencode"
 )
 
 // UsageMeasurementKind describes the trust source for a complete usage event.
