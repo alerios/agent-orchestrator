@@ -109,10 +109,10 @@ const VIEW_DEFS: {
 		labelKey: "inspector.metrics",
 		icon: (
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-				<line x1="4" y1="20" x2="4" y2="12" />
-				<line x1="10" y1="20" x2="10" y2="4" />
-				<line x1="16" y1="20" x2="16" y2="9" />
-				<line x1="22" y1="20" x2="22" y2="15" />
+				<line x1="3" y1="20" x2="3" y2="12" />
+				<line x1="9" y1="20" x2="9" y2="4" />
+				<line x1="15" y1="20" x2="15" y2="9" />
+				<line x1="21" y1="20" x2="21" y2="15" />
 			</svg>
 		),
 	},

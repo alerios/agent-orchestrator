@@ -36,6 +36,12 @@ describe("MetricsView", () => {
 		expect(screen.queryByTestId("session-usage-metrics")).not.toBeInTheDocument();
 	});
 
+	it("does not assert no telemetry while the usage query is still loading", () => {
+		mockUsage = { data: undefined, isError: false, isLoading: true };
+		render(<MetricsView session={session} />);
+		expect(screen.queryByText(/No telemetry recorded/i)).not.toBeInTheDocument();
+	});
+
 	it("flags partial coverage as a lower bound", () => {
 		mockUsage = {
 			data: {

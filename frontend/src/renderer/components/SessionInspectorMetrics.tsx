@@ -7,20 +7,26 @@ import { useSessionUsage, type SessionUsage } from "../hooks/useSessionUsage";
 import { formatEstimatedCost, type EstimatedCost } from "../lib/format-cost";
 import { formatTokenCount } from "../lib/format-token-count";
 import type { WorkspaceSession } from "../types/workspace";
-import { useUiStore } from "../stores/ui-store";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 export function MetricsView({ session }: { session: WorkspaceSession }) {
 	const { t } = useTranslation();
-	const developerMode = useUiStore((state) => state.developerMode);
 	// Always fetch: the usage block is no longer developer-gated.
 	const usageQuery = useSessionUsage(session.id, true);
 	const usage = usageQuery.data;
-	const hasUsage = !usageQuery.isLoading && !usageQuery.isError && hasMeaningfulSessionUsage(usage);
+	const hasUsage = hasMeaningfulSessionUsage(usage);
 	return (
 		<TooltipProvider>
 			<div role="tabpanel">
-				{hasUsage && usage ? (
+				{usageQuery.isLoading ? (
+					<Section title={t("inspector.usage.title")}>
+						<p className={inspectorEmptyClass}>{t("inspector.metrics.loading")}</p>
+					</Section>
+				) : usageQuery.isError ? (
+					<Section title={t("inspector.usage.title")}>
+						<p className={inspectorEmptyClass}>{t("inspector.usage.processedTokensUnavailable")}</p>
+					</Section>
+				) : hasUsage && usage ? (
 					<>
 						<Section title={t("inspector.usage.title")}>
 							<UsageCostTelemetry usage={usage} />
@@ -35,27 +41,11 @@ export function MetricsView({ session }: { session: WorkspaceSession }) {
 					</>
 				) : (
 					<Section title={t("inspector.metrics")}>
-						<p className={inspectorEmptyClass}>
-							{usageQuery.isError
-								? t("inspector.usage.processedTokensUnavailable")
-								: t("inspector.metrics.noData")}
-						</p>
+						<p className={inspectorEmptyClass}>{t("inspector.metrics.noData")}</p>
 					</Section>
 				)}
-				{developerMode ? <MetricsDiagnostics query={usageQuery} /> : null}
 			</div>
 		</TooltipProvider>
-	);
-}
-
-/** Developer-mode-only ingestion diagnostics. Not user-facing telemetry. */
-function MetricsDiagnostics({ query }: { query: ReturnType<typeof useSessionUsage> }) {
-	const { t } = useTranslation();
-	if (!query.isError) return null;
-	return (
-		<Section title={t("inspector.metrics.coverage.title")}>
-			<p className={inspectorEmptyClass}>{t("inspector.usage.processedTokensUnavailable")}</p>
-		</Section>
 	);
 }
 
