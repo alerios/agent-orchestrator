@@ -10,10 +10,14 @@ import (
 )
 
 type fakeOpenCodeStore struct {
-	applied   [][]domain.ModelUsageEvent
-	cursors   []domain.SourceCursorState
-	failures  []string
-	sourceCtx domain.UsageSourceContext
+	applied      [][]domain.ModelUsageEvent
+	cursors      []domain.SourceCursorState
+	failures     []string
+	sourceCtx    domain.UsageSourceContext
+	toolCalls    []domain.SessionToolCall
+	effort       domain.SessionEffort
+	effortAt     time.Time
+	effortWrites int
 }
 
 func (f *fakeOpenCodeStore) GetUsageSourceForIngestion(
@@ -37,6 +41,26 @@ func (f *fakeOpenCodeStore) MarkUsageSourceFailure(
 ) (bool, error) {
 	f.failures = append(f.failures, code)
 	return true, nil
+}
+
+func (f *fakeOpenCodeStore) UpsertSessionToolCalls(_ context.Context, calls []domain.SessionToolCall) error {
+	f.toolCalls = append(f.toolCalls, calls...)
+	return nil
+}
+
+func (f *fakeOpenCodeStore) ListSessionToolCalls(
+	_ context.Context, _ domain.SessionID,
+) ([]domain.SessionToolCall, error) {
+	return f.toolCalls, nil
+}
+
+func (f *fakeOpenCodeStore) UpsertSessionEffort(
+	_ context.Context, _ domain.SessionID, effort domain.SessionEffort, at time.Time,
+) error {
+	f.effort = effort
+	f.effortAt = at
+	f.effortWrites++
+	return nil
 }
 
 func TestOpenCodeCollectorPersistsEventsOnce(t *testing.T) {

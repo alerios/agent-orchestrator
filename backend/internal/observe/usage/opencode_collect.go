@@ -17,6 +17,9 @@ type openCodeCollectorStore interface {
 	GetUsageSourceForIngestion(context.Context, int64) (domain.UsageSourceContext, bool, error)
 	ApplyUsageChunk(context.Context, int64, int64, time.Time, domain.SourceCursorState, []domain.ModelUsageEvent) error
 	MarkUsageSourceFailure(context.Context, int64, int64, string, time.Time, time.Time) (bool, error)
+	UpsertSessionToolCalls(context.Context, []domain.SessionToolCall) error
+	ListSessionToolCalls(context.Context, domain.SessionID) ([]domain.SessionToolCall, error)
+	UpsertSessionEffort(context.Context, domain.SessionID, domain.SessionEffort, time.Time) error
 }
 
 // OpenCodeCollector ingests one opencode-backed usage source per call.
@@ -88,17 +91,74 @@ func (c *OpenCodeCollector) Collect(ctx context.Context, sourceID int64) error {
 		return c.fail(ctx, source, domain.UsageErrorInvalidParserState, now)
 	}
 
+	toolCalls := make([]domain.SessionToolCall, 0, len(parts))
+	for _, part := range parts {
+		if call, ok := decodeOpenCodeToolCall(source.SessionID, part, now); ok {
+			toolCalls = append(toolCalls, call)
+		}
+	}
+	if len(toolCalls) > 0 {
+		if err := c.store.UpsertSessionToolCalls(ctx, toolCalls); err != nil {
+			return c.fail(ctx, source, domain.UsageErrorSourceReadFailed, now)
+		}
+	}
+
 	// ByteOffset is meaningless for a database source and stays zero; the real
 	// cursor rides in ParserStateJSON. Passing the source's own offset keeps the
 	// store's optimistic-concurrency check intact.
-	return c.store.ApplyUsageChunk(
+	if err := c.store.ApplyUsageChunk(
 		ctx,
 		source.Source.ID,
 		source.Source.ByteOffset,
 		source.Source.UpdatedAt,
 		parsed.Cursor,
 		parsed.Events,
-	)
+	); err != nil {
+		return err
+	}
+
+	stored, err := c.store.ListSessionToolCalls(ctx, source.SessionID)
+	if err != nil {
+		return nil
+	}
+	compactions := openCodeCompactionCount(parts)
+	effort := deriveEffort(stored, firstObserved(stored), lastObserved(stored), compactions)
+	effort.FilesChanged = session.SummaryFiles
+	effort.LinesAdded = session.SummaryAdditions
+	effort.LinesRemoved = session.SummaryDeletions
+	return c.store.UpsertSessionEffort(ctx, source.SessionID, effort, now)
+}
+
+// firstObserved returns the earliest observation time among calls, preferring
+// StartedAt when present since it is a tighter lower bound than ObservedAt.
+func firstObserved(calls []domain.SessionToolCall) time.Time {
+	var first time.Time
+	for _, call := range calls {
+		t := call.ObservedAt
+		if call.StartedAt != nil {
+			t = *call.StartedAt
+		}
+		if first.IsZero() || t.Before(first) {
+			first = t
+		}
+	}
+	return first
+}
+
+// lastObserved returns the latest observation time among calls, preferring
+// StartedAt when present for consistency with firstObserved.
+func lastObserved(calls []domain.SessionToolCall) time.Time {
+	var last time.Time
+	for _, call := range calls {
+		t := call.ObservedAt
+		if call.StartedAt != nil {
+			t = *call.StartedAt
+		}
+		if t.After(last) {
+			last = t
+		}
+	}
+	return last
 }
 
 func (c *OpenCodeCollector) fail(

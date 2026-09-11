@@ -565,6 +565,23 @@ type SessionCleanupFact struct {
 	FailureCode          string
 }
 
+type SessionEffortRollup struct {
+	SessionID       string
+	DurationMs      sql.NullInt64
+	ActiveMs        sql.NullInt64
+	IdleMs          sql.NullInt64
+	ToolCalls       int64
+	FilesRead       int64
+	FilesChanged    int64
+	LinesAdded      int64
+	LinesRemoved    int64
+	CommandsRun     int64
+	TestsRun        int64
+	Compactions     int64
+	TimingAvailable int64
+	UpdatedAt       int64
+}
+
 type SessionInterfaceTransition struct {
 	ID                   string
 	SessionID            domain.SessionID
@@ -588,6 +605,23 @@ type SessionInterfaceTransitionMessage struct {
 	CreatedAt       time.Time
 	DeliveredAt     sql.NullTime
 	ClientMessageID string
+}
+
+type SessionToolCall struct {
+	ID             int64
+	SessionID      string
+	SourceKind     string
+	ProviderCallID string
+	ToolName       string
+	IsMcp          int64
+	McpServer      string
+	InputSummary   string
+	Outcome        string
+	StartedAt      sql.NullInt64
+	EndedAt        sql.NullInt64
+	DurationMs     sql.NullInt64
+	ExitCode       sql.NullInt64
+	ObservedAt     int64
 }
 
 type SessionWorktree struct {
