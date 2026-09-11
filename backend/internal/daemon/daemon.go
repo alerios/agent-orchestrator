@@ -625,7 +625,7 @@ func Run() error {
 		}
 		ingestor := usagepipeline.NewIngestor(store, ingestorConfig)
 		openCodeWorkspace := &sessionWorkspaceLocator{sessions: sessionSvc}
-		openCodeCollector := usagepipeline.NewOpenCodeCollector(store, roots.OpenCodeHome, func(id domain.SessionID) (string, bool) {
+		openCodeCollector := usagepipeline.NewOpenCodeCollector(store, roots.OpenCodeDBPath(), func(id domain.SessionID) (string, bool) {
 			path, _, err := openCodeWorkspace.SessionWorkspace(ctx, id)
 			if err != nil || path == "" {
 				return "", false
@@ -962,12 +962,23 @@ func installedAgentHarness(target systeminstall.Target) (string, bool) {
 }
 
 func usagePipelineWatchRoots(roots usagesvc.SourceRoots) []string {
-	return []string{
+	all := []string{
 		roots.ClaudeProjects,
 		roots.CodexSessions,
 		roots.CodexArchived,
 		roots.KimiHome,
+		// OpenCodeHome is the directory containing opencode.db (and its
+		// WAL-mode sidecar files such as opencode.db-wal). Watching the
+		// containing directory, like every other root here, sees both.
+		roots.OpenCodeHome,
 	}
+	watchRoots := make([]string, 0, len(all))
+	for _, root := range all {
+		if strings.TrimSpace(root) != "" {
+			watchRoots = append(watchRoots, root)
+		}
+	}
+	return watchRoots
 }
 
 func seedScratchProjectOnBoot(ctx context.Context, cfg config.Config, projects *projectsvc.Service) error {

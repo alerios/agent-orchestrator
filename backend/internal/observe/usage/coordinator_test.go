@@ -463,3 +463,46 @@ func TestCoordinatorNilOpenCodeCollectorSkipsRatherThanPanics(t *testing.T) {
 		t.Fatalf("file ingests = %d, want 0 (opencode source with nil collector must be skipped)", fileIngests)
 	}
 }
+
+// TestCoordinatorPrunesSourceKindsForRetiredSources verifies refreshInventory
+// prunes c.sourceKinds against the same "live" set it already uses to prune
+// retries, so retired sources do not accumulate in the map forever.
+func TestCoordinatorPrunesSourceKindsForRetiredSources(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "session.jsonl")
+	source := watchableTestSource(42, path)
+	store := &coordinatorTestStore{sources: []domain.UsageSourceRecord{source}}
+	watcher := newCoordinatorTestWatcher()
+	called := make(chan struct{}, 4)
+	ingestor := coordinatorTestIngestor(func(context.Context, int64) (IngestResult, error) {
+		called <- struct{}{}
+		return IngestResult{}, nil
+	})
+
+	coordinator := NewCoordinator(store, ingestor, watcher, CoordinatorConfig{Workers: 1})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := coordinator.Start(ctx)
+	waitForCoordinatorCalls(t, called, 1)
+
+	if _, ok := coordinator.sourceKinds.Load(int64(42)); !ok {
+		t.Fatal("expected sourceKinds to contain the live source")
+	}
+
+	store.mu.Lock()
+	store.sources = nil
+	store.mu.Unlock()
+	coordinator.NotifyInventoryChanged()
+
+	deadline := time.After(5 * time.Second)
+	for {
+		if _, ok := coordinator.sourceKinds.Load(int64(42)); !ok {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatal("timed out waiting for retired source to be pruned from sourceKinds")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+
+	stopCoordinatorTest(t, cancel, done)
+}

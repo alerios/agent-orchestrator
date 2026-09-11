@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -56,6 +58,10 @@ type HookSignal struct {
 	SubagentTranscriptPath string
 }
 
+// openCodeDBFileName is the fixed basename of the shared opencode database
+// inside SourceRoots.OpenCodeHome.
+const openCodeDBFileName = "opencode.db"
+
 // SourceRoots are the provider-owned directories from which AO may read usage
 // transcripts.
 type SourceRoots struct {
@@ -63,7 +69,20 @@ type SourceRoots struct {
 	CodexSessions  string
 	CodexArchived  string
 	KimiHome       string
-	OpenCodeHome   string
+	// OpenCodeHome is the directory containing the shared opencode.db
+	// (and its WAL-mode sidecar files, e.g. opencode.db-wal). It mirrors
+	// the CodexHome/CodexSessions split: a "home directory" concept kept
+	// separate from any specific file/subdirectory within it.
+	OpenCodeHome string
+}
+
+// OpenCodeDBPath returns the full path to the shared opencode database
+// within OpenCodeHome.
+func (r SourceRoots) OpenCodeDBPath() string {
+	if strings.TrimSpace(r.OpenCodeHome) == "" {
+		return ""
+	}
+	return filepath.Join(r.OpenCodeHome, openCodeDBFileName)
 }
 
 // DefaultSourceRoots resolves provider-owned transcript directories. dataDir
@@ -86,9 +105,9 @@ func DefaultSourceRoots(ctx context.Context, dataDir string) (SourceRoots, error
 	xdgDataHome := strings.TrimSpace(os.Getenv("XDG_DATA_HOME"))
 	var openCodeHome string
 	if xdgDataHome != "" {
-		openCodeHome = filepath.Join(xdgDataHome, "opencode", "opencode.db")
+		openCodeHome = filepath.Join(xdgDataHome, "opencode")
 	} else {
-		openCodeHome = filepath.Join(home, ".local", "share", "opencode", "opencode.db")
+		openCodeHome = filepath.Join(home, ".local", "share", "opencode")
 	}
 	return SourceRoots{
 		ClaudeProjects: filepath.Join(home, ".claude", "projects"),
@@ -567,7 +586,13 @@ func usageNativeSessionID(session domain.SessionRecord) string {
 	// usage actually belongs to this AO session is answered separately, by
 	// directory matching inside OpenCodeCollector.
 	if session.Harness == domain.HarnessOpenCode {
-		return boundedUsageMetadata(string(session.ID))
+		// session.ID is an AO session id (project-id-num), and project ids
+		// may contain '.' (see projectIDPattern), which nativeUsageIDPattern
+		// does not accept. Hash to a stable, always-alnum synthetic id
+		// rather than widening the shared nativeUsageIDPattern for every
+		// harness.
+		sum := sha256.Sum256([]byte(session.ID))
+		return "oc" + hex.EncodeToString(sum[:16])
 	}
 	nativeID := session.Metadata.AgentSessionID
 	if domain.NormalizeSessionMode(session.Mode) == domain.SessionModeChat &&
@@ -2010,7 +2035,7 @@ func (c *Collector) discoverOpenCodePath(ctx context.Context) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	path := c.roots.OpenCodeHome
+	path := c.roots.OpenCodeDBPath()
 	if strings.TrimSpace(path) == "" {
 		return "", nil
 	}

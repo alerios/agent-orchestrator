@@ -184,7 +184,7 @@ func (w *TranscriptWatcher) handleEvent(ctx context.Context, event fsnotify.Even
 	emit := ""
 	discovery := false
 	if event.Op&(fsnotify.Create|fsnotify.Write|fsnotify.Rename|fsnotify.Remove) != 0 &&
-		filepath.Ext(path) == ".jsonl" &&
+		isWatchableTranscriptExt(path) &&
 		w.withinDesiredRoot(ctx, path) {
 		emit = path
 		discovery = event.Op&(fsnotify.Create|fsnotify.Rename) != 0
@@ -204,6 +204,20 @@ func (w *TranscriptWatcher) handleEvent(ctx context.Context, event fsnotify.Even
 		return emit, discovery, fmt.Errorf("rebuild transcript watcher after %s: %w", event.Op, err)
 	}
 	return emit, discovery, nil
+}
+
+// isWatchableTranscriptExt reports whether path has an extension this
+// watcher forwards events for: ".jsonl" for every hook-driven transcript
+// harness, plus ".db" for opencode's shared SQLite database (and its
+// WAL-mode sidecar, ".db-wal", so a write that only touches the sidecar
+// still surfaces promptly instead of waiting for a periodic refresh tick).
+func isWatchableTranscriptExt(path string) bool {
+	switch filepath.Ext(path) {
+	case ".jsonl", ".db", ".db-wal":
+		return true
+	default:
+		return false
+	}
 }
 
 func (w *TranscriptWatcher) rebuildLocked(ctx context.Context) error {

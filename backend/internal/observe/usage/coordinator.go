@@ -302,6 +302,16 @@ func (c *Coordinator) run(ctx context.Context) {
 				delete(retries, sourceID)
 			}
 		}
+		c.sourceKinds.Range(func(key, _ any) bool {
+			sourceID, ok := key.(int64)
+			if !ok {
+				return true
+			}
+			if _, ok := live[sourceID]; !ok {
+				c.sourceKinds.Delete(sourceID)
+			}
+			return true
+		})
 		paths = nextPaths
 		pending, err := c.store.HasPendingUsageDiscovery(ctx)
 		if err != nil {
