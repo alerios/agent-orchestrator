@@ -6747,6 +6747,45 @@ paths:
       summary: Get detailed token and estimated cost usage for one session
       tags:
       - usage
+  /api/v1/usage/sessions/{sessionId}/effort:
+    get:
+      operationId: getSessionEffort
+      parameters:
+      - description: Session identifier, e.g. project-1.
+        in: path
+        name: sessionId
+        required: true
+        schema:
+          description: Session identifier, e.g. project-1.
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControllersSessionEffortResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Get derived effort counters and tool mix for one session
+      tags:
+      - usage
 components:
   schemas:
     APIError:
@@ -7945,6 +7984,60 @@ components:
         disabled:
           type: boolean
       type: object
+    ControllersEffortResponse:
+      properties:
+        activeMs:
+          type:
+          - "null"
+          - integer
+        commandsRun:
+          format: int64
+          type: integer
+        compactions:
+          format: int64
+          type: integer
+        durationMs:
+          type:
+          - "null"
+          - integer
+        filesChanged:
+          format: int64
+          type: integer
+        filesRead:
+          format: int64
+          type: integer
+        idleMs:
+          type:
+          - "null"
+          - integer
+        linesAdded:
+          format: int64
+          type: integer
+        linesRemoved:
+          format: int64
+          type: integer
+        testsRun:
+          format: int64
+          type: integer
+        timingAvailable:
+          type: boolean
+        toolCalls:
+          format: int64
+          type: integer
+      required:
+      - activeMs
+      - compactions
+      - commandsRun
+      - durationMs
+      - filesChanged
+      - filesRead
+      - idleMs
+      - linesAdded
+      - linesRemoved
+      - testsRun
+      - timingAvailable
+      - toolCalls
+      type: object
     ControllersRequestRereviewRequest:
       properties:
         pullRequestUrl:
@@ -8004,6 +8097,18 @@ components:
       - host
       - port
       - reason
+      type: object
+    ControllersSessionEffortResponse:
+      properties:
+        effort:
+          $ref: '#/components/schemas/ControllersEffortResponse'
+        toolMix:
+          items:
+            $ref: '#/components/schemas/ControllersToolMixResponse'
+          type: array
+      required:
+      - effort
+      - toolMix
       type: object
     ControllersSessionView:
       properties:
@@ -8194,6 +8299,26 @@ components:
           type: boolean
       required:
       - enabled
+      type: object
+    ControllersToolMixResponse:
+      properties:
+        calls:
+          format: int64
+          type: integer
+        failedCalls:
+          format: int64
+          type: integer
+        toolName:
+          type: string
+        totalDurationMs:
+          type:
+          - "null"
+          - integer
+      required:
+      - calls
+      - failedCalls
+      - toolName
+      - totalDurationMs
       type: object
     ControllersUpdateCloudOfferingRequest:
       properties:

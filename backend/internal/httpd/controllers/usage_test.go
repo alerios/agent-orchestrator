@@ -10,10 +10,37 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/aoagents/agent-orchestrator/backend/internal/config"
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd"
+	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
 )
+
+type stubUsageSummaryService struct{}
+
+func (stubUsageSummaryService) ListCompact(context.Context, domain.ProjectID) ([]domain.CompactSessionUsage, error) {
+	return nil, nil
+}
+
+func (stubUsageSummaryService) Get(context.Context, domain.SessionID) (domain.SessionUsageSummary, error) {
+	return domain.SessionUsageSummary{}, nil
+}
+
+type stubEffortService struct {
+	effort   domain.SessionEffort
+	mix      []domain.ToolMixEntry
+	notFound bool
+	err      error
+}
+
+func (s stubEffortService) Get(context.Context, domain.SessionID) (domain.SessionEffort, []domain.ToolMixEntry, bool, error) {
+	if s.err != nil || s.notFound {
+		return domain.SessionEffort{}, nil, false, s.err
+	}
+	return s.effort, s.mix, true, nil
+}
 
 type fakeUsageSummaryService struct {
 	projectID domain.ProjectID
@@ -194,5 +221,52 @@ func TestUsageAPIShowsDetailedEstimatedCostAndProviderAttribution(t *testing.T) 
 		got.Harnesses[0].Models[0].Totals.EstimatedCost.Coverage != "complete" ||
 		got.Harnesses[0].Models[0].Totals.EstimatedCost.ProviderAttribution != "observed" {
 		t.Fatalf("response = %+v", got)
+	}
+}
+
+func TestGetSessionEffortReturnsNullForUnknownTiming(t *testing.T) {
+	controller := &controllers.UsageController{
+		Svc:    stubUsageSummaryService{},
+		Effort: stubEffortService{effort: domain.SessionEffort{ToolCalls: 5, TimingAvailable: false}},
+	}
+	router := chi.NewRouter()
+	controller.Register(router)
+
+	request := httptest.NewRequest(http.MethodGet, "/usage/sessions/sess-1/effort", nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", recorder.Code)
+	}
+	var body struct {
+		Effort struct {
+			ActiveMs        *int64 `json:"activeMs"`
+			ToolCalls       int64  `json:"toolCalls"`
+			TimingAvailable bool   `json:"timingAvailable"`
+		} `json:"effort"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Effort.ActiveMs != nil {
+		t.Fatalf("activeMs = %v, want null", body.Effort.ActiveMs)
+	}
+	if body.Effort.ToolCalls != 5 || body.Effort.TimingAvailable {
+		t.Fatalf("effort = %+v, want 5 calls and timingAvailable false", body.Effort)
+	}
+}
+
+func TestGetSessionEffortIsNotImplementedWithoutService(t *testing.T) {
+	controller := &controllers.UsageController{Svc: stubUsageSummaryService{}}
+	router := chi.NewRouter()
+	controller.Register(router)
+
+	request := httptest.NewRequest(http.MethodGet, "/usage/sessions/sess-1/effort", nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code == http.StatusOK {
+		t.Fatal("status = 200 with no effort service, want a not-implemented status")
 	}
 }

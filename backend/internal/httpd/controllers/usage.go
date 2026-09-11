@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apispec"
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
 )
@@ -17,15 +18,22 @@ type UsageSummaryService interface {
 	Get(context.Context, domain.SessionID) (domain.SessionUsageSummary, error)
 }
 
+// EffortService is the controller-facing effort read contract.
+type EffortService interface {
+	Get(context.Context, domain.SessionID) (domain.SessionEffort, []domain.ToolMixEntry, bool, error)
+}
+
 // UsageController owns compact dashboard usage routes.
 type UsageController struct {
-	Svc UsageSummaryService
+	Svc    UsageSummaryService
+	Effort EffortService
 }
 
 // Register mounts usage routes on the supplied router.
 func (c *UsageController) Register(r chi.Router) {
 	r.Get("/usage/sessions", c.listSessions)
 	r.Get("/usage/sessions/{sessionId}", c.getSession)
+	r.Get("/usage/sessions/{sessionId}/effort", c.getSessionEffort)
 }
 
 func (c *UsageController) listSessions(w http.ResponseWriter, r *http.Request) {
@@ -66,6 +74,44 @@ func (c *UsageController) getSession(w http.ResponseWriter, r *http.Request) {
 	envelope.WriteJSON(w, http.StatusOK, sessionUsageResponse(summary))
 }
 
+func (c *UsageController) getSessionEffort(w http.ResponseWriter, r *http.Request) {
+	if c.Effort == nil {
+		apispec.NotImplemented(w, r, "GET", "/api/v1/usage/sessions/{sessionId}/effort")
+		return
+	}
+	sessionID := domain.SessionID(chi.URLParam(r, "sessionId"))
+	effort, mix, found, err := c.Effort.Get(r.Context(), sessionID)
+	if err != nil {
+		envelope.WriteError(w, r, err)
+		return
+	}
+	if !found {
+		envelope.WriteError(w, r, apierr.NotFound("SESSION_EFFORT_NOT_FOUND", "No recorded telemetry for this session"))
+		return
+	}
+	envelope.WriteJSON(w, http.StatusOK, sessionEffortResponse(effort, mix))
+}
+
+func sessionEffortResponse(effort domain.SessionEffort, mix []domain.ToolMixEntry) SessionEffortResponse {
+	toolMix := make([]ToolMixResponse, 0, len(mix))
+	for _, entry := range mix {
+		toolMix = append(toolMix, ToolMixResponse{
+			ToolName: entry.ToolName, Calls: entry.Calls, FailedCalls: entry.FailedCalls,
+			TotalDurationMs: entry.TotalDurationMS,
+		})
+	}
+	return SessionEffortResponse{
+		Effort: EffortResponse{
+			DurationMs: effort.DurationMS, ActiveMs: effort.ActiveMS, IdleMs: effort.IdleMS,
+			ToolCalls: effort.ToolCalls, FilesRead: effort.FilesRead, FilesChanged: effort.FilesChanged,
+			LinesAdded: effort.LinesAdded, LinesRemoved: effort.LinesRemoved,
+			CommandsRun: effort.CommandsRun, TestsRun: effort.TestsRun,
+			Compactions: effort.Compactions, TimingAvailable: effort.TimingAvailable,
+		},
+		ToolMix: toolMix,
+	}
+}
+
 func sessionUsageResponse(summary domain.SessionUsageSummary) SessionUsageResponse {
 	harnesses := make([]UsageHarnessResponse, 0, len(summary.Harnesses))
 	for _, harness := range summary.Harnesses {
@@ -93,6 +139,37 @@ func usageTotalsResponse(totals domain.UsageMetricTotals) UsageTotalsResponse {
 		CacheReadTokens: totals.CachedInputTokens,
 		EstimatedCost:   estimatedCostResponse(totals.EstimatedCost),
 	}
+}
+
+// SessionEffortResponse is the effort and tool-mix read model. Every nullable
+// millisecond field is a pointer: null means AO could not measure it.
+type SessionEffortResponse struct {
+	Effort  EffortResponse    `json:"effort"`
+	ToolMix []ToolMixResponse `json:"toolMix"`
+}
+
+// EffortResponse carries the per-session counters.
+type EffortResponse struct {
+	ActiveMs        *int64 `json:"activeMs"`
+	Compactions     int64  `json:"compactions"`
+	CommandsRun     int64  `json:"commandsRun"`
+	DurationMs      *int64 `json:"durationMs"`
+	FilesChanged    int64  `json:"filesChanged"`
+	FilesRead       int64  `json:"filesRead"`
+	IdleMs          *int64 `json:"idleMs"`
+	LinesAdded      int64  `json:"linesAdded"`
+	LinesRemoved    int64  `json:"linesRemoved"`
+	TestsRun        int64  `json:"testsRun"`
+	TimingAvailable bool   `json:"timingAvailable"`
+	ToolCalls       int64  `json:"toolCalls"`
+}
+
+// ToolMixResponse is one tool's share of the session.
+type ToolMixResponse struct {
+	Calls           int64  `json:"calls"`
+	FailedCalls     int64  `json:"failedCalls"`
+	ToolName        string `json:"toolName"`
+	TotalDurationMs *int64 `json:"totalDurationMs"`
 }
 
 func estimatedCostResponse(cost *domain.EstimatedCost) *EstimatedCostResponse {

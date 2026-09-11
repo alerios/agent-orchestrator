@@ -2386,6 +2386,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/usage/sessions/{sessionId}/effort": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get derived effort counters and tool mix for one session */
+        get: operations["getSessionEffort"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2823,6 +2840,28 @@ export interface components {
         ContainerReapConfig: {
             disabled?: boolean;
         };
+        ControllersEffortResponse: {
+            activeMs: null | number;
+            /** Format: int64 */
+            commandsRun: number;
+            /** Format: int64 */
+            compactions: number;
+            durationMs: null | number;
+            /** Format: int64 */
+            filesChanged: number;
+            /** Format: int64 */
+            filesRead: number;
+            idleMs: null | number;
+            /** Format: int64 */
+            linesAdded: number;
+            /** Format: int64 */
+            linesRemoved: number;
+            /** Format: int64 */
+            testsRun: number;
+            timingAvailable: boolean;
+            /** Format: int64 */
+            toolCalls: number;
+        };
         ControllersRequestRereviewRequest: {
             /** @description Tracked pull request URL. Required when the session has multiple PRs. */
             pullRequestUrl?: string;
@@ -2848,6 +2887,10 @@ export interface components {
             host: string;
             port: number;
             reason: string;
+        };
+        ControllersSessionEffortResponse: {
+            effort: components["schemas"]["ControllersEffortResponse"];
+            toolMix: components["schemas"]["ControllersToolMixResponse"][];
         };
         ControllersSessionView: {
             activeAgentSwitch?: components["schemas"]["AgentSwitch"];
@@ -2900,6 +2943,14 @@ export interface components {
         };
         ControllersSetSessionAutoReviewRequest: {
             enabled: boolean;
+        };
+        ControllersToolMixResponse: {
+            /** Format: int64 */
+            calls: number;
+            /** Format: int64 */
+            failedCalls: number;
+            toolName: string;
+            totalDurationMs: null | number;
         };
         ControllersUpdateCloudOfferingRequest: {
             enabled: null | boolean;
@@ -12915,6 +12966,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionUsageResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    getSessionEffort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session identifier, e.g. project-1. */
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControllersSessionEffortResponse"];
                 };
             };
             /** @description Not Found */
