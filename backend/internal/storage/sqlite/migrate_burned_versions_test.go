@@ -141,6 +141,7 @@ var shippedMigrations = map[int64]string{
 	134: "0134_review_activity_state.sql",
 	135: "0135_review_launch_id.sql",
 	136: "0136_allow_opencode_usage.sql",
+	137: "0137_session_tool_calls.sql",
 }
 
 // burnedVersion reports version numbers that must never be (re)used: they
