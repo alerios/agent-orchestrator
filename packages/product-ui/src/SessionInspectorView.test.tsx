@@ -163,6 +163,45 @@ describe("SessionInspectorShellView", () => {
     );
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
+
+  it("renders the metrics panel when the metrics tab is active", () => {
+    render(
+      <SessionInspectorShellView
+        activeView="metrics"
+        ariaLabel="Inspector"
+        browserPoppedOut={false}
+        metricsView={<p>metrics body</p>}
+        onViewChange={() => {}}
+        summaryView={<p>summary body</p>}
+        tabs={[
+          { icon: <span />, id: "summary", label: "Summary" },
+          { icon: <span />, id: "metrics", label: "Metrics" },
+        ]}
+      />,
+    );
+    expect(screen.getByText("metrics body")).toBeInTheDocument();
+    expect(screen.queryByText("summary body")).not.toBeInTheDocument();
+  });
+
+  it("moves selection to the metrics tab with ArrowRight", () => {
+    const onViewChange = vi.fn();
+    render(
+      <SessionInspectorShellView
+        activeView="summary"
+        ariaLabel="Inspector"
+        browserPoppedOut={false}
+        metricsView={<p>metrics body</p>}
+        onViewChange={onViewChange}
+        summaryView={<p>summary body</p>}
+        tabs={[
+          { icon: <span />, id: "summary", label: "Summary" },
+          { icon: <span />, id: "metrics", label: "Metrics" },
+        ]}
+      />,
+    );
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Summary" }), { key: "ArrowRight" });
+    expect(onViewChange).toHaveBeenCalledWith("metrics");
+  });
 });
 
 describe("portable inspector presentations", () => {

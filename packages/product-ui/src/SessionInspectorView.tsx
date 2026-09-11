@@ -22,7 +22,7 @@ import { scmUserAvatarUrl } from "./scm-avatar";
 import { cn } from "./utils";
 import { UserAvatar } from "./UserAvatar";
 
-export type InspectorView = "summary" | "reviews" | "browser" | "files";
+export type InspectorView = "summary" | "metrics" | "reviews" | "browser" | "files";
 
 export type InspectorTab = {
 	badge?: boolean;
@@ -46,6 +46,7 @@ export function SessionInspectorShellView({
 	headerActions,
 	isVisible = true,
 	loadingText,
+	metricsView,
 	onViewChange,
 	reviewsView,
 	summaryView,
@@ -59,6 +60,7 @@ export function SessionInspectorShellView({
 	headerActions?: ReactNode;
 	isVisible?: boolean;
 	loadingText?: string;
+	metricsView?: ReactNode;
 	onViewChange: (view: InspectorView) => void;
 	reviewsView?: ReactNode;
 	summaryView?: ReactNode;
@@ -172,6 +174,7 @@ export function SessionInspectorShellView({
 				inert={!isVisible}
 			>
 				{activeView === "summary" ? summaryView : null}
+				{activeView === "metrics" ? metricsView : null}
 				{activeView === "reviews" ? reviewsView : null}
 				{activeView === "browser" ? browserView : null}
 				{activeView === "files" ? filesView : null}
