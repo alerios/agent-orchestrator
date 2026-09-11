@@ -123,15 +123,21 @@ If a patch touches the API surface, regenerate before building:
 ## Submitting one upstream
 
 ```bash
-git push fork <branch>
+git push origin <branch>
 gh pr create --repo Untrivial-ai/agent-orchestrator --base main --head alerios:<branch>
 ```
 
-`fork` is a personal fork (`alerios/agent-orchestrator`) — write access to
+`origin` is a personal fork (`alerios/agent-orchestrator`) — write access to
 `Untrivial-ai/agent-orchestrator` itself is read-only, so a fork is the
-standard vehicle for opening a PR, not a sign of permanent divergence. Never
-push or PR `local/integration` or `local/patch-index` — submit the individual
-patch branches.
+standard vehicle for opening a PR, not a sign of permanent divergence.
+`upstream` is the real repo, read-only, pulled from but never pushed to
+(`git checkout main && git pull` always means `upstream/main`). Each of the 5
+patch branches tracks its own `origin/<branch>`, so a bare `git push`/`git pull`
+on one of them does the right thing without naming a remote. Never push or PR
+`local/integration` or `local/patch-index` — submit the individual patch
+branches; both of those track `upstream/main` on purpose, so a stray `git push`
+on either fails safe against the read-only remote instead of silently landing
+on the public fork.
 
 Per the repo's own `AGENTS.md`: one issue per PR, conventional commit
 subjects, and run the CI jobs locally first (this directory's per-branch
