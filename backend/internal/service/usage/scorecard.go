@@ -6,6 +6,7 @@ import (
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/service/scoring"
+	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite/store"
 )
 
 // scorecardStore is everything ScorecardService reads to assemble
@@ -22,6 +23,10 @@ type scorecardStore interface {
 	// a one-shot terminal session both have zero observable turns, and only
 	// the former is "not measurable".
 	HasConversation(ctx context.Context, id domain.SessionID) (bool, error)
+	// ConversationTurns returns the session's conversation turns, ordered by
+	// sequence, for deriving steering-load facts (UserTurns, Interrupts). It
+	// is only ever called when HasConversation is true.
+	ConversationTurns(ctx context.Context, id domain.SessionID) ([]domain.ConversationTurn, error)
 }
 
 // ScorecardService assembles scoring.Facts from durable session data and
@@ -70,12 +75,20 @@ func (s *ScorecardService) Get(ctx context.Context, id domain.SessionID) (scorin
 	}
 	facts.Calls = calls
 	facts.ReworkedFiles, facts.FilesEdited = reworkCounts(calls)
+	facts.RejectedApprovals = countDeniedCalls(calls)
 
 	hasConversation, err := s.store.HasConversation(ctx, id)
 	if err != nil {
 		return scoring.Scorecard{}, err
 	}
 	facts.HasConversation = hasConversation
+	if hasConversation {
+		turns, err := s.store.ConversationTurns(ctx, id)
+		if err != nil {
+			return scoring.Scorecard{}, err
+		}
+		facts.UserTurns, facts.Interrupts = turnCounts(turns)
+	}
 
 	pr, hasPR, err := s.store.GetDisplayPRFactsForSession(ctx, id)
 	if err != nil {
@@ -117,6 +130,31 @@ func reworkCounts(calls []domain.SessionToolCall) (reworkedFiles, filesEdited in
 	return reworkedFiles, filesEdited
 }
 
+// countDeniedCalls counts tool calls the user (or an approval policy) denied.
+func countDeniedCalls(calls []domain.SessionToolCall) int64 {
+	var denied int64
+	for _, call := range calls {
+		if call.Outcome == domain.ToolOutcomeDenied {
+			denied++
+		}
+	}
+	return denied
+}
+
+// turnCounts derives steering-load turn facts from a conversation's turns.
+// Every ConversationTurn is one user-initiated request/work cycle, so the
+// turn count itself is UserTurns; scoring treats the first as the initial
+// prompt and anything beyond it as steering.
+func turnCounts(turns []domain.ConversationTurn) (userTurns, interrupts int64) {
+	for _, turn := range turns {
+		userTurns++
+		if turn.State == domain.TurnStateInterrupted {
+			interrupts++
+		}
+	}
+	return userTurns, interrupts
+}
+
 // scorecardRawStore is the subset of the durable store ScorecardStoreAdapter
 // needs beyond usage-summary aggregation, which it delegates to a
 // *SummaryReader instead of duplicating.
@@ -127,6 +165,7 @@ type scorecardRawStore interface {
 	GetDisplayPRFactsForSession(ctx context.Context, id domain.SessionID) (domain.PRFacts, bool, error)
 	ConversationForSession(ctx context.Context, id domain.SessionID) (domain.ConversationRecord, error)
 	HasConversationTurns(ctx context.Context, conversationID string) (bool, error)
+	LoadConversationSnapshot(ctx context.Context, conversationID string) (store.ConversationSnapshot, error)
 }
 
 // usageSummaryGetter is the narrow SummaryReader contract ScorecardStoreAdapter
@@ -195,4 +234,20 @@ func (a ScorecardStoreAdapter) HasConversation(ctx context.Context, id domain.Se
 		return false, err
 	}
 	return a.Store.HasConversationTurns(ctx, conv.ID)
+}
+
+// ConversationTurns loads the session's conversation and returns its turns.
+// Callers must only invoke this after HasConversation has reported true.
+func (a ScorecardStoreAdapter) ConversationTurns(
+	ctx context.Context, id domain.SessionID,
+) ([]domain.ConversationTurn, error) {
+	conv, err := a.Store.ConversationForSession(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	snapshot, err := a.Store.LoadConversationSnapshot(ctx, conv.ID)
+	if err != nil {
+		return nil, err
+	}
+	return snapshot.Turns, nil
 }

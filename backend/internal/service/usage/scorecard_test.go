@@ -19,6 +19,7 @@ type stubScorecardStore struct {
 	pr      domain.PRFacts
 	hasPR   bool
 	hasConv bool
+	turns   []domain.ConversationTurn
 }
 
 func (s stubScorecardStore) GetSession(context.Context, domain.SessionID) (domain.SessionRecord, bool, error) {
@@ -43,6 +44,10 @@ func (s stubScorecardStore) GetDisplayPRFactsForSession(context.Context, domain.
 
 func (s stubScorecardStore) HasConversation(context.Context, domain.SessionID) (bool, error) {
 	return s.hasConv, nil
+}
+
+func (s stubScorecardStore) ConversationTurns(context.Context, domain.SessionID) ([]domain.ConversationTurn, error) {
+	return s.turns, nil
 }
 
 func ptr(v int64) *int64 { return &v }
@@ -120,4 +125,64 @@ func TestScorecardServiceReworkCountsExcludeUnreportedPaths(t *testing.T) {
 	if got := delivery.Evidence["reworked_files"]; got != 1 {
 		t.Fatalf("reworked_files = %v, want 1", got)
 	}
+}
+
+func TestScorecardServiceCountsRejectedApprovals(t *testing.T) {
+	service := NewScorecardService(stubScorecardStore{
+		session: domain.SessionRecord{Harness: domain.HarnessOpenCode, ID: "sess-1"},
+		calls: []domain.SessionToolCall{
+			{ToolName: "bash", Outcome: domain.ToolOutcomeCompleted},
+			{ToolName: "bash", Outcome: domain.ToolOutcomeDenied},
+			{ToolName: "bash", Outcome: domain.ToolOutcomeDenied},
+		},
+		hasConv: true,
+	})
+
+	card, err := service.Get(context.Background(), "sess-1")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	steering := factorByFactorName(card, scoring.FactorSteeringLoad)
+	if !steering.Present {
+		t.Fatalf("steering load absent (%s), want present", steering.AbsentReason)
+	}
+	if got := steering.Evidence["rejected_approvals"]; got != 2 {
+		t.Fatalf("rejected_approvals = %v, want 2", got)
+	}
+}
+
+func TestScorecardServiceCountsTurnsAndInterrupts(t *testing.T) {
+	service := NewScorecardService(stubScorecardStore{
+		session: domain.SessionRecord{Harness: domain.HarnessOpenCode, ID: "sess-1"},
+		hasConv: true,
+		turns: []domain.ConversationTurn{
+			{ID: "t1", State: domain.TurnStateCompleted},
+			{ID: "t2", State: domain.TurnStateInterrupted},
+			{ID: "t3", State: domain.TurnStateCompleted},
+		},
+	})
+
+	card, err := service.Get(context.Background(), "sess-1")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	steering := factorByFactorName(card, scoring.FactorSteeringLoad)
+	if !steering.Present {
+		t.Fatalf("steering load absent (%s), want present", steering.AbsentReason)
+	}
+	if got := steering.Evidence["user_turns"]; got != 3 {
+		t.Fatalf("user_turns = %v, want 3", got)
+	}
+	if got := steering.Evidence["interrupts"]; got != 1 {
+		t.Fatalf("interrupts = %v, want 1", got)
+	}
+}
+
+func factorByFactorName(card scoring.Scorecard, name scoring.Factor) scoring.FactorScore {
+	for _, factor := range card.Factors {
+		if factor.Factor == name {
+			return factor
+		}
+	}
+	return scoring.FactorScore{}
 }
