@@ -530,6 +530,7 @@ vi.mock("./SessionInspector", () => ({
 		onOpenReviewFile,
 		onToggleBrowserPopOut,
 		onViewChange,
+		variant,
 		view,
 	}: {
 		filesView?: ReactNode;
@@ -538,11 +539,13 @@ vi.mock("./SessionInspector", () => ({
 		onOpenReviewFile?: (target: { line?: number; path: string }) => void;
 		onToggleBrowserPopOut?: (next: boolean, sourceRect?: DOMRectReadOnly) => void;
 		onViewChange?: (view: InspectorView) => void;
+		variant?: string;
 		view?: string;
 	}) => {
 		inspectorVisibilityRenders.push(isInspectorVisible);
 		return (
 			<div>
+				<span data-testid="inspector-variant">{variant}</span>
 				<button role="tab" type="button" onClick={() => onViewChange?.("summary")}>
 					Summary
 				</button>
@@ -2709,7 +2712,8 @@ describe("SessionView", () => {
 
 	it("mounts the inspector in sync when navigating from an orchestrator session", () => {
 		const { rerender } = render(<SessionView sessionId="sess-orch" />);
-		expect(screen.queryByTestId("panel-inspector")).not.toBeInTheDocument();
+		// Orchestrators have a rail too, but it starts collapsed.
+		expect(screen.getByTestId("panel-inspector")).toHaveAttribute("data-state", "collapsed");
 
 		act(() => useUiStore.getState().setInspectorOpen("sess-1", true));
 		rerender(<SessionView sessionId="sess-1" />);
@@ -2724,7 +2728,7 @@ describe("SessionView", () => {
 
 		act(() => useUiStore.getState().setInspectorOpen("sess-2", false));
 		rerender(<SessionView sessionId="sess-orch" />);
-		expect(screen.queryByTestId("panel-inspector")).not.toBeInTheDocument();
+		expect(screen.getByTestId("panel-inspector")).toHaveAttribute("data-state", "collapsed");
 
 		act(() => useUiStore.getState().setInspectorOpen("sess-2", false));
 		rerender(<SessionView sessionId="sess-2" />);
@@ -2736,16 +2740,21 @@ describe("SessionView", () => {
 		expect(screen.getByTestId("panel-inspector")).toHaveAttribute("data-state", "expanded");
 	});
 
-	it("renders no inspector panel or handle for orchestrator sessions", () => {
+	it("renders a collapsed, Metrics-only rail for orchestrator sessions", () => {
 		render(<SessionView sessionId="sess-orch" />);
 
-		expect(screen.queryByTestId("panel-inspector")).not.toBeInTheDocument();
-		expect(screen.queryByTestId("inspector-resize-handle")).not.toBeInTheDocument();
-		expect(screen.queryByTestId("inspector-collapsed-rail")).not.toBeInTheDocument();
+		// Orchestrators keep the full workspace width on entry, but their spend
+		// is the project's largest, so the rail has to be reachable.
+		expect(screen.getByTestId("panel-inspector")).toHaveAttribute("data-state", "collapsed");
+		expect(inspectorOpen("sess-orch")).toBe(false);
+		expect(useUiStore.getState().inspectorSessions["sess-orch"]?.view).toBe("metrics");
 
-		// The shortcut is inactive without an inspector.
-		fireEvent.keyDown(window, { key: "B", metaKey: true, shiftKey: true });
-		expect(useUiStore.getState().inspectorSessions["sess-orch"]).toBeUndefined();
+		// The shortcut now opens it, onto Metrics — the only tab they get.
+		fireEvent.keyDown(window, { key: "B", ctrlKey: true, shiftKey: true });
+		expect(inspectorOpen("sess-orch")).toBe(true);
+		expect(screen.getByTestId("panel-inspector")).toHaveAttribute("data-state", "expanded");
+		// The Metrics-only tab set itself is asserted in SessionInspector.test.tsx.
+		expect(screen.getByTestId("inspector-variant")).toHaveTextContent("orchestrator");
 	});
 
 	it("smoothly morphs the browser over the whole app window and back to its dock", async () => {

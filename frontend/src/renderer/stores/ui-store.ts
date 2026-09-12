@@ -143,7 +143,13 @@ export type UiState = {
 	 * remount of the session view, not just across re-renders of one mounted
 	 * instance.
 	 */
-	initializeInspectorSession: (sessionId: string, hasBrowserContent: boolean, hasInspector: boolean) => void;
+	initializeInspectorSession: (
+		sessionId: string,
+		hasBrowserContent: boolean,
+		hasInspector: boolean,
+		/** Start the rail collapsed on Metrics (orchestrators keep the full workspace width). */
+		startCollapsedOnMetrics?: boolean,
+	) => void;
 	setBrowserContentRevealed: (sessionId: string, revealed: boolean) => void;
 	setBrowserUnseen: (sessionId: string, unseen: boolean) => void;
 	setFilesChangedOnly: (sessionId: string, changedOnly: boolean) => void;
@@ -299,12 +305,13 @@ export const useUiStore = create<UiState>((set, get) => ({
 				},
 			};
 		}),
-	initializeInspectorSession: (sessionId, hasBrowserContent, hasInspector) =>
+	initializeInspectorSession: (sessionId, hasBrowserContent, hasInspector, startCollapsedOnMetrics = false) =>
 		set((state) => {
-			// Sessions without an inspector (e.g. orchestrator sessions) must not
-			// gain a store entry at all — leave inspectorSessions[sessionId]
-			// undefined so callers that key off its presence stay correct.
+			// Sessions without an inspector must not gain a store entry at all —
+			// leave inspectorSessions[sessionId] undefined so callers that key off
+			// its presence stay correct.
 			if (!hasInspector) return state;
+			const existing = state.inspectorSessions[sessionId];
 			const current = inspectorState(state.inspectorSessions, sessionId);
 			if (current.initialized) return state;
 			return {
@@ -313,7 +320,12 @@ export const useUiStore = create<UiState>((set, get) => ({
 					[sessionId]: {
 						...current,
 						initialized: true,
-						view: "summary",
+						// Orchestrators need their metrics reachable but keep the
+						// full workspace width on entry, so the rail starts closed
+						// and on its only tab. A pre-existing open/closed choice
+						// (e.g. the user toggled before this ran) is preserved.
+						isOpen: existing ? current.isOpen : !startCollapsedOnMetrics,
+						view: startCollapsedOnMetrics ? "metrics" : "summary",
 						browserContentRevealed: current.browserContentRevealed ?? hasBrowserContent,
 					},
 				},

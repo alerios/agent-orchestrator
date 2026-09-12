@@ -717,7 +717,7 @@ function hasMeaningfulSessionUsage(usage?: SessionUsage): usage is SessionUsage 
 	);
 }
 
-function formatTelemetryTokenValue(totalTokens: number): string {
+export function formatTelemetryTokenValue(totalTokens: number): string {
 	return formatTokenCount(totalTokens).replace(/ tok$/, "");
 }
 
@@ -725,7 +725,7 @@ function usageProcessedTokens(totals: SessionUsage["totals"]): number | null {
 	return totals.processedTokens;
 }
 
-function formatHarnessName(harness: string): string {
+export function formatHarnessName(harness: string): string {
 	const knownNames: Record<string, string> = {
 		"claude-code": "Claude",
 		claude: "Claude",
@@ -744,7 +744,7 @@ function formatHarnessName(harness: string): string {
 // The billing provider stays out of the display name: the row already sits
 // under its agent, so the prefix only repeats context the reader has. The exact
 // model id remains available as the title.
-function formatModelName(modelID: string): string {
+export function formatModelName(modelID: string): string {
 	let parts = modelID.trim().split(/[-_]+/).filter(Boolean);
 	const isClaude = parts[0]?.toLowerCase() === "claude";
 	if (isClaude) {

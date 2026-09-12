@@ -40,6 +40,7 @@ import { workspaceQueryKey } from "../hooks/useWorkspaceQuery";
 import { captureRendererEvent } from "../lib/telemetry";
 import { formatTimeCompact } from "../lib/format-time";
 import { AgentAvatar } from "./AgentAvatar";
+import { OrchestratorMetrics } from "./OrchestratorMetrics";
 import { MetricsView } from "./SessionInspectorMetrics";
 import { ProductExternalLink } from "./ProductExternalLink";
 import {
@@ -162,6 +163,7 @@ export function SessionInspector({
 	browserView,
 	view: viewProp,
 	onViewChange,
+	variant = "worker",
 }: {
 	session?: WorkspaceSession;
 	onOpenReviewerTerminal?: OpenReviewerTerminal;
@@ -176,6 +178,12 @@ export function SessionInspector({
 	/** Controlled active tab. Omit to let the inspector own its own selection. */
 	view?: InspectorView;
 	onViewChange?: (view: InspectorView) => void;
+	/**
+	 * Which tab set to offer. Orchestrators get Metrics only: they have no PR,
+	 * no reviews, no worktree files and no preview of their own, so the other
+	 * tabs would render empty bodies.
+	 */
+	variant?: "worker" | "orchestrator";
 }) {
 	const { t } = useTranslation();
 	const [internalView, setInternalView] = useState<InspectorView>("summary");
@@ -193,11 +201,18 @@ export function SessionInspector({
 	const openReviews = useCallback(() => setView("reviews"), [setView]);
 	// A persisted/controlled Reviews selection can outlive the last reviewable PR.
 	// Keep the shell on a real, visible tab instead of rendering an empty, unlabelled body.
-	const reviewsAvailable = reviewsTabVisible(session);
-	const availableViewDefs = reviewsAvailable
-		? VIEW_DEFS
-		: VIEW_DEFS.filter((entry) => entry.id !== "reviews");
-	const view: InspectorView = availableViewDefs.some((entry) => entry.id === requestedView) ? requestedView : "summary";
+	const reviewsAvailable = variant === "worker" && reviewsTabVisible(session);
+	const availableViewDefs =
+		variant === "orchestrator"
+			? VIEW_DEFS.filter((entry) => entry.id === "metrics")
+			: reviewsAvailable
+				? VIEW_DEFS
+				: VIEW_DEFS.filter((entry) => entry.id !== "reviews");
+	// Falling back to the first available tab rather than a hardcoded "summary"
+	// is what keeps an orchestrator off a tab that is not in its own tab list.
+	const view: InspectorView = availableViewDefs.some((entry) => entry.id === requestedView)
+		? requestedView
+		: availableViewDefs[0].id;
 	useEffect(() => {
 		if (view === requestedView) return;
 		setInternalView(view);
@@ -243,7 +258,15 @@ export function SessionInspector({
 				headerActions={<span aria-hidden="true" className="session-inspector-actions-spacer" />}
 				isVisible={isInspectorVisible}
 				loadingText={session ? undefined : t("inspector.loadingSession")}
-				metricsView={session ? <MetricsView session={session} /> : undefined}
+				metricsView={
+					session ? (
+						variant === "orchestrator" ? (
+							<OrchestratorMetrics session={session} />
+						) : (
+							<MetricsView session={session} />
+						)
+					) : undefined
+				}
 				onViewChange={setView}
 				reviewsView={
 					session ? <ReviewsView onOpenReviewFile={onOpenReviewFile} onOpenReviewerTerminal={onOpenReviewerTerminal} session={session} /> : undefined

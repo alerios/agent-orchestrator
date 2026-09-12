@@ -518,10 +518,18 @@ export function SessionView({ sessionId }: SessionViewProps) {
 		[queryClient],
 	);
 	const workspaceQuery = useWorkspaceSession(sessionId);
+	// Needed this high up: the rail's default open state depends on it.
+	const isOrchestrator = workspaceQuery.data ? isOrchestratorSession(workspaceQuery.data) : false;
 	const theme = useResolvedTheme();
 	const prefersReducedMotion = useReducedMotion();
-	const isInspectorOpen = useUiStore((state) => state.inspectorSessions[sessionId]?.isOpen ?? true);
-	const inspectorView = useUiStore((state) => state.inspectorSessions[sessionId]?.view ?? "summary");
+	// Workers default open; orchestrators default collapsed so they keep the
+	// full workspace width until the rail is asked for.
+	const isInspectorOpen = useUiStore(
+		(state) => state.inspectorSessions[sessionId]?.isOpen ?? !isOrchestrator,
+	);
+	const inspectorView = useUiStore(
+		(state) => state.inspectorSessions[sessionId]?.view ?? (isOrchestrator ? "metrics" : "summary"),
+	);
 	const setInspectorOpenForSession = useUiStore((state) => state.setInspectorOpen);
 	const toggleInspector = useUiStore((state) => state.toggleInspector);
 	const setInspectorViewForSession = useUiStore((state) => state.setInspectorView);
@@ -1063,7 +1071,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
 				: current,
 		);
 	}, [availableReviewerTerminal, reviewerQuery.isFetched]);
-	const isOrchestrator = session ? isOrchestratorSession(session) : false;
 	const isProjectRestarting = useUiStore((state) =>
 		session ? state.restartingProjectIds.has(session.workspaceId) : false,
 	);
@@ -1077,8 +1084,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
 			setOrchestratorReplacementError,
 		});
 	}, [session, queryClient, navigate, setProjectRestarting, setOrchestratorReplacementError]);
-	// Orchestrators get the full workspace width; only workers need the inspector rail.
-	const hasInspector = Boolean(session && !isOrchestrator);
+	// Orchestrators get the full workspace width by default, but still need a
+	// rail: they are a project's longest-lived and most expensive session, so
+	// their metrics have to be reachable. The rail starts collapsed for them.
+	const hasInspector = Boolean(session);
 	const sizing = useMemo(() => inspectorSizing(inspectorView), [inspectorView]);
 	const browserEntryWidthFloorRef = useRef<number | null>(null);
 
@@ -1370,8 +1379,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
 	// only preview work arriving afterward may reveal Browser automatically.
 	useLayoutEffect(() => {
 		if (!session) return;
-		initializeInspectorSession(sessionId, hasBrowserContent, hasInspector);
-	}, [hasBrowserContent, hasInspector, session, sessionId, initializeInspectorSession]);
+		initializeInspectorSession(sessionId, hasBrowserContent, hasInspector, isOrchestrator);
+	}, [hasBrowserContent, hasInspector, isOrchestrator, session, sessionId, initializeInspectorSession]);
 
 	useLayoutEffect(() => {
 		setTerminalTarget({ kind: "worker" });
@@ -2004,6 +2013,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 							onOpenReviewerTerminal={selectReviewerTerminal}
 							onToggleBrowserPopOut={handleToggleBrowserPopOut}
 							onViewChange={transitionInspectorView}
+							variant={isOrchestrator ? "orchestrator" : "worker"}
 							view={inspectorView}
 							browserView={browserView}
 							session={session}

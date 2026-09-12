@@ -3747,4 +3747,29 @@ describe("SessionInspector summary reviews", () => {
     expect(screen.getByText("Session controls")).toBeInTheDocument();
     await waitFor(() => expect(onViewChange).toHaveBeenCalledWith("summary"));
   });
+
+  it("offers orchestrators only Metrics and lands them on it", async () => {
+    const onViewChange = vi.fn();
+    getMock.mockImplementation(commonGetsResponder());
+    renderWithQuery(
+      <SessionInspector
+        onViewChange={onViewChange}
+        session={session([], { id: "sess-orch", kind: "orchestrator" })}
+        variant="orchestrator"
+        view="summary"
+      />,
+    );
+
+    // Orchestrators have no PR, no reviews, no worktree files and no preview of
+    // their own, so every other tab would render an empty body.
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Metrics",
+    ]);
+    expect(screen.getByRole("tab", { name: "Metrics" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    // A persisted "summary" must not leave them on a tab outside their own set.
+    await waitFor(() => expect(onViewChange).toHaveBeenCalledWith("metrics"));
+  });
 });
