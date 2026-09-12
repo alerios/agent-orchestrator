@@ -285,3 +285,50 @@ func TestOpenCodeCollectorAccumulatesCompactionsAcrossPolls(t *testing.T) {
 		t.Fatalf("compactions = %d after 4 polls, want 1 (the session-lifetime total, not the last poll's delta)", store.effort.Compactions)
 	}
 }
+
+// TestOpenCodeCollectorDurationCoversActiveSpan is the regression guard for
+// the lastObserved bug: DurationMS (derived from firstObserved/lastObserved)
+// must never fall below ActiveMS (derived independently via unionSpanMillis
+// from each call's real StartedAt/EndedAt span). A single timed tool call
+// with a 5s span used to yield DurationMS=0 (lastObserved preferred the
+// call's StartedAt over its EndedAt, so first==last==start) while
+// ActiveMS=5000, producing a self-contradictory Duration/Active/Idle report.
+func TestOpenCodeCollectorDurationCoversActiveSpan(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "opencode.db")
+	sessionID := "ses_1"
+	directory := "/tmp/wt/duration-test"
+	db := buildOpenCodeDB(t, dbPath, sessionID, directory)
+
+	start := int64(1_773_336_000_000)
+	end := start + 5000
+	payload := fmt.Sprintf(
+		`{"type":"tool","callID":"call_a","tool":"bash","state":{"status":"completed","title":"sleep 5","time":{"start":%d,"end":%d}}}`,
+		start, end,
+	)
+	addOpenCodePart(t, db, sessionID, 1, payload)
+
+	store := &fakeOpenCodeStore{sourceCtx: domain.UsageSourceContext{
+		BindingState: domain.UsageBindingActive,
+		SessionID:    domain.SessionID("sess-1"),
+		Source:       domain.UsageSourceRecord{ID: 1, Kind: domain.UsageSourceOpenCodeDB},
+	}}
+	collector := NewOpenCodeCollector(
+		store, dbPath,
+		func(domain.SessionID) (string, bool) { return directory, true },
+	)
+
+	if err := collector.Collect(context.Background(), 1); err != nil {
+		t.Fatalf("Collect: %v", err)
+	}
+
+	if store.effort.DurationMS == nil || store.effort.ActiveMS == nil {
+		t.Fatalf("DurationMS/ActiveMS unexpectedly nil: %+v", store.effort)
+	}
+	if *store.effort.DurationMS < *store.effort.ActiveMS {
+		t.Fatalf(
+			"DurationMS=%d < ActiveMS=%d: the session timeline's latest point must cover every call's active span",
+			*store.effort.DurationMS, *store.effort.ActiveMS,
+		)
+	}
+}

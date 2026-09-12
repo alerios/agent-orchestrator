@@ -152,12 +152,17 @@ func firstObserved(calls []domain.SessionToolCall) time.Time {
 }
 
 // lastObserved returns the latest observation time among calls, preferring
-// StartedAt when present for consistency with firstObserved.
+// EndedAt when present since it is a tighter upper bound than StartedAt or
+// ObservedAt; StartedAt is used only when EndedAt is absent. This mirrors
+// unionSpanMillis in effort.go so DurationMS never falls below ActiveMS.
 func lastObserved(calls []domain.SessionToolCall) time.Time {
 	var last time.Time
 	for _, call := range calls {
 		t := call.ObservedAt
-		if call.StartedAt != nil {
+		switch {
+		case call.EndedAt != nil:
+			t = *call.EndedAt
+		case call.StartedAt != nil:
 			t = *call.StartedAt
 		}
 		if t.After(last) {
