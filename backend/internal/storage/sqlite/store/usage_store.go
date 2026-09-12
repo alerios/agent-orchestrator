@@ -1100,3 +1100,140 @@ func int64PtrWhen(v int64, ok bool) *int64 {
 	}
 	return &v
 }
+
+// ProjectUsageRollup returns the project-scoped orchestrator-rail read model:
+// orchestrator spend split from worker spend, one line per worker, and the
+// delivery and coverage counts that keep those totals honest.
+//
+// A worker with no usage event is reported with Measured false and a nil cost.
+// Its spend is unknown, not zero, so it is counted in UnmeasuredSessions rather
+// than folded into a total as $0. A measured worker may legitimately cost
+// nothing (a local model), which is why the event count, not a null cost, is
+// what decides measurement.
+func (s *Store) ProjectUsageRollup(
+	ctx context.Context,
+	id domain.ProjectID,
+) (domain.ProjectUsageRollup, error) {
+	rollup := domain.ProjectUsageRollup{ProjectID: id}
+
+	kindRows, err := s.qr.AggregateProjectUsageByKind(ctx, id)
+	if err != nil {
+		return domain.ProjectUsageRollup{}, fmt.Errorf("aggregate usage by kind for project %s: %w", id, err)
+	}
+	for _, row := range kindRows {
+		totals, err := domain.DeriveUsageMetricTotals(
+			projectKindTokensFromGen(row), projectKindCostFromGen(row),
+		)
+		if err != nil {
+			return domain.ProjectUsageRollup{}, fmt.Errorf("derive %s totals for project %s: %w", row.Kind, id, err)
+		}
+		switch row.Kind {
+		case domain.KindOrchestrator:
+			rollup.OrchestratorTotals = totals
+		case domain.KindWorker:
+			rollup.WorkerTotals = totals
+		}
+	}
+
+	workerRows, err := s.qr.ListProjectWorkerUsageRows(ctx, id)
+	if err != nil {
+		return domain.ProjectUsageRollup{}, fmt.Errorf("list worker usage rows for project %s: %w", id, err)
+	}
+	rollup.Workers = make([]domain.WorkerUsageRow, 0, len(workerRows))
+	for _, row := range workerRows {
+		worker := domain.WorkerUsageRow{
+			SessionID:  row.SessionID,
+			Title:      row.DisplayName,
+			Harness:    row.Harness,
+			ModelID:    row.ModelID,
+			DurationMS: nullInt64Ptr(row.DurationMs),
+			Measured:   row.EventCount > 0,
+			Outcome:    workerOutcomeFromGen(row),
+		}
+		if worker.Measured {
+			cost, err := domain.DeriveEstimatedCost(workerCostFromGen(row))
+			if err != nil {
+				return domain.ProjectUsageRollup{}, fmt.Errorf(
+					"derive cost for worker %s: %w", row.SessionID, err)
+			}
+			worker.EstimatedCost = cost
+		}
+		rollup.Workers = append(rollup.Workers, worker)
+	}
+	// Cost-descending with unknown-cost rows last. Ordering on the derived
+	// estimate rather than on the raw SQL sum keeps the rail's order identical
+	// to the numbers it prints; SQL orders by session number only, so the
+	// stable sort leaves equal-cost rows in creation order.
+	sort.SliceStable(rollup.Workers, func(i, j int) bool {
+		left, right := rollup.Workers[i].EstimatedCost, rollup.Workers[j].EstimatedCost
+		if left == nil || right == nil {
+			return left != nil && right == nil
+		}
+		return left.TotalNanos > right.TotalNanos
+	})
+
+	if rollup.OrchestratorGenerations, err = s.qr.CountProjectOrchestratorGenerations(ctx, id); err != nil {
+		return domain.ProjectUsageRollup{}, fmt.Errorf("count orchestrator generations for project %s: %w", id, err)
+	}
+	if rollup.MergedPRs, err = s.qr.CountProjectMergedPRs(ctx, id); err != nil {
+		return domain.ProjectUsageRollup{}, fmt.Errorf("count merged PRs for project %s: %w", id, err)
+	}
+	if rollup.UnmeasuredSessions, err = s.qr.CountProjectUnmeasuredSessions(ctx, id); err != nil {
+		return domain.ProjectUsageRollup{}, fmt.Errorf("count unmeasured sessions for project %s: %w", id, err)
+	}
+	return rollup, nil
+}
+
+// workerOutcomeFromGen classifies a worker by AO's own stored delivery facts
+// only. A live session is active; a finished one that merged is merged; one
+// whose PRs were all closed unmerged failed; one that ended with nothing to
+// show was abandoned. Nothing here is inferred from absence of a hook.
+func workerOutcomeFromGen(row gen.ListProjectWorkerUsageRowsRow) domain.WorkerOutcome {
+	switch {
+	case row.MergedPRCount > 0:
+		return domain.WorkerOutcomeMerged
+	case row.IsTerminated == 0:
+		return domain.WorkerOutcomeActive
+	case row.ClosedPRCount > 0:
+		return domain.WorkerOutcomeFailed
+	default:
+		return domain.WorkerOutcomeAbandoned
+	}
+}
+
+func projectKindTokensFromGen(row gen.AggregateProjectUsageByKindRow) domain.UsageTokenMetrics {
+	// A summed metric is only meaningful when every event in the group carried
+	// it; one uncollected counter makes the whole sum unknown.
+	return domain.UsageTokenMetrics{
+		InputTokens:         int64PtrWhen(row.InputTokens, row.KnownInputTokenCount == row.EventCount),
+		CachedInputTokens:   int64PtrWhen(row.CachedInputTokens, row.KnownCachedInputTokenCount == row.EventCount),
+		UncachedInputTokens: int64PtrWhen(row.UncachedInputTokens, row.KnownUncachedInputTokenCount == row.EventCount),
+		OutputTokens:        int64PtrWhen(row.OutputTokens, row.KnownOutputTokenCount == row.EventCount),
+	}
+}
+
+func projectKindCostFromGen(row gen.AggregateProjectUsageByKindRow) domain.UsageCostAggregate {
+	return domain.UsageCostAggregate{
+		EventCount: row.EventCount, PricedEventCount: row.PricedEventCount, PricedTotalNanos: row.PricedTotalNanos,
+		ObservedCostEventCount: row.ObservedCostEventCount, InferredCostEventCount: row.InferredCostEventCount,
+		KnownInputCount: row.KnownInputCount, KnownInputNanos: row.KnownInputNanos,
+		UnpricedKnownInputNanos: row.UnpricedKnownInputNanos,
+		KnownCachedInputCount:   row.KnownCachedInputCount, KnownCachedInputNanos: row.KnownCachedInputNanos,
+		UnpricedKnownCachedInputNanos: row.UnpricedKnownCachedInputNanos,
+		KnownOutputCount:              row.KnownOutputCount, KnownOutputNanos: row.KnownOutputNanos,
+		UnpricedKnownOutputNanos: row.UnpricedKnownOutputNanos,
+	}
+}
+
+func workerCostFromGen(row gen.ListProjectWorkerUsageRowsRow) domain.UsageCostAggregate {
+	return domain.UsageCostAggregate{
+		EventCount: row.EventCount, PricedEventCount: row.PricedEventCount, PricedTotalNanos: row.PricedTotalNanos,
+		ObservedCostEventCount: row.ObservedCostEventCount, InferredCostEventCount: row.InferredCostEventCount,
+		KnownInputCount: row.KnownInputCount, KnownInputNanos: row.KnownInputNanos,
+		UnpricedKnownInputNanos: row.UnpricedKnownInputNanos,
+		KnownCachedInputCount:   row.KnownCachedInputCount, KnownCachedInputNanos: row.KnownCachedInputNanos,
+		UnpricedKnownCachedInputNanos: row.UnpricedKnownCachedInputNanos,
+		KnownOutputCount:              row.KnownOutputCount, KnownOutputNanos: row.KnownOutputNanos,
+		UnpricedKnownOutputNanos: row.UnpricedKnownOutputNanos,
+	}
+}

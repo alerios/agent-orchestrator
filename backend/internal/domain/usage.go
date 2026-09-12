@@ -394,6 +394,50 @@ type SessionUsageSummary struct {
 	Harnesses  []HarnessUsageSummary
 }
 
+// WorkerOutcome is how a worker session ended, as far as AO's delivery facts
+// show. It is the denominator vocabulary for orchestrator efficiency.
+type WorkerOutcome string
+
+// Worker outcomes.
+const (
+	WorkerOutcomeActive    WorkerOutcome = "active"
+	WorkerOutcomeMerged    WorkerOutcome = "merged"
+	WorkerOutcomeAbandoned WorkerOutcome = "abandoned"
+	WorkerOutcomeFailed    WorkerOutcome = "failed"
+)
+
+// WorkerUsageRow is one worker's line in the orchestrator roll-up. Measured
+// is false when AO had no certified usage source for the session: its cost is
+// unknown, not zero, and it must not be summed into a total silently.
+type WorkerUsageRow struct {
+	DurationMS    *int64
+	EstimatedCost *EstimatedCost
+	Harness       AgentHarness
+	Measured      bool
+	ModelID       string
+	Outcome       WorkerOutcome
+	SessionID     SessionID
+	Title         string
+}
+
+// ProjectUsageRollup is the orchestrator-rail read model.
+//
+// Attribution is by project, which is exact because AO runs one active
+// orchestrator per project. OrchestratorGenerations counts how many
+// orchestrator sessions the project has had, so a lifetime total is never
+// mistaken for the current orchestrator's own spend. UnmeasuredSessions is the
+// count whose usage AO could not observe, which makes every total a stated
+// lower bound rather than a false precision.
+type ProjectUsageRollup struct {
+	MergedPRs               int64
+	OrchestratorGenerations int64
+	OrchestratorTotals      UsageMetricTotals
+	ProjectID               ProjectID
+	UnmeasuredSessions      int64
+	WorkerTotals            UsageMetricTotals
+	Workers                 []WorkerUsageRow
+}
+
 // SourceCursorState is the durable source state to commit after parsing a
 // chunk. ApplyUsageChunk writes it atomically with the emitted events.
 type SourceCursorState struct {

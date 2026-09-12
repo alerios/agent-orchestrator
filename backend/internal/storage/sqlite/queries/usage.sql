@@ -635,3 +635,114 @@ LEFT JOIN usage_session_integrity integrity ON integrity.session_id = ub.session
 WHERE (sqlc.arg(project_id) = '' OR s.project_id = sqlc.arg(project_id))
 GROUP BY ub.session_id, s.project_id, s.num, integrity.incomplete
 ORDER BY s.project_id, s.num;
+
+-- name: AggregateProjectUsageByKind :many
+-- Project-scoped totals split by session kind. The orchestrator rail must never
+-- present a project's lifetime spend as the current orchestrator's own, so the
+-- split happens in SQL rather than by subtracting one total from another.
+SELECT
+    s.kind AS kind,
+    CAST(COUNT(*) AS INTEGER) AS event_count,
+    CAST(COALESCE(SUM(mue.input_tokens), 0) AS INTEGER) AS input_tokens,
+    CAST(COUNT(mue.input_tokens) AS INTEGER) AS known_input_token_count,
+    CAST(COALESCE(SUM(mue.cached_input_tokens), 0) AS INTEGER) AS cached_input_tokens,
+    CAST(COUNT(mue.cached_input_tokens) AS INTEGER) AS known_cached_input_token_count,
+    CAST(COALESCE(SUM(mue.uncached_input_tokens), 0) AS INTEGER) AS uncached_input_tokens,
+    CAST(COUNT(mue.uncached_input_tokens) AS INTEGER) AS known_uncached_input_token_count,
+    CAST(COALESCE(SUM(mue.output_tokens), 0) AS INTEGER) AS output_tokens,
+    CAST(COUNT(mue.output_tokens) AS INTEGER) AS known_output_token_count,
+    CAST(COUNT(mue.estimated_cost_nanos) AS INTEGER) AS priced_event_count,
+    CAST(COALESCE(SUM(mue.estimated_cost_nanos), 0) AS INTEGER) AS priced_total_nanos,
+    CAST(COUNT(CASE WHEN mue.billing_provider_source = 'observed' AND (
+        mue.estimated_cost_nanos IS NOT NULL OR mue.input_cost_nanos IS NOT NULL OR
+        mue.cached_input_cost_nanos IS NOT NULL OR mue.output_cost_nanos IS NOT NULL
+    ) THEN 1 END) AS INTEGER) AS observed_cost_event_count,
+    CAST(COUNT(CASE WHEN mue.billing_provider_source = 'inferred' AND (
+        mue.estimated_cost_nanos IS NOT NULL OR mue.input_cost_nanos IS NOT NULL OR
+        mue.cached_input_cost_nanos IS NOT NULL OR mue.output_cost_nanos IS NOT NULL
+    ) THEN 1 END) AS INTEGER) AS inferred_cost_event_count,
+    CAST(COUNT(mue.input_cost_nanos) AS INTEGER) AS known_input_count,
+    CAST(COALESCE(SUM(mue.input_cost_nanos), 0) AS INTEGER) AS known_input_nanos,
+    CAST(COALESCE(SUM(CASE WHEN mue.estimated_cost_nanos IS NULL THEN mue.input_cost_nanos END), 0) AS INTEGER) AS unpriced_known_input_nanos,
+    CAST(COUNT(mue.cached_input_cost_nanos) AS INTEGER) AS known_cached_input_count,
+    CAST(COALESCE(SUM(mue.cached_input_cost_nanos), 0) AS INTEGER) AS known_cached_input_nanos,
+    CAST(COALESCE(SUM(CASE WHEN mue.estimated_cost_nanos IS NULL THEN mue.cached_input_cost_nanos END), 0) AS INTEGER) AS unpriced_known_cached_input_nanos,
+    CAST(COUNT(mue.output_cost_nanos) AS INTEGER) AS known_output_count,
+    CAST(COALESCE(SUM(mue.output_cost_nanos), 0) AS INTEGER) AS known_output_nanos,
+    CAST(COALESCE(SUM(CASE WHEN mue.estimated_cost_nanos IS NULL THEN mue.output_cost_nanos END), 0) AS INTEGER) AS unpriced_known_output_nanos
+FROM model_usage_events mue
+JOIN usage_bindings ub ON ub.id = mue.binding_id
+JOIN sessions s ON s.id = ub.session_id
+WHERE s.project_id = ?
+GROUP BY s.kind
+ORDER BY s.kind;
+
+-- name: ListProjectWorkerUsageRows :many
+-- One row per worker session, measured or not. The usage join is a LEFT JOIN so
+-- a worker AO never measured still appears, and every coverage comparison uses
+-- COUNT(mue.id) rather than COUNT(*) so an event-less worker reads as zero
+-- events instead of one. PR and effort facts come from scalar subqueries: an
+-- extra join would fan the event rows out and inflate every sum.
+SELECT
+    s.id AS session_id,
+    s.display_name AS display_name,
+    s.harness AS harness,
+    s.model AS model_id,
+    effort.duration_ms AS duration_ms,
+    CAST(s.is_terminated AS INTEGER) AS is_terminated,
+    CAST((SELECT COUNT(*) FROM pr WHERE pr.session_id = s.id AND pr.pr_state = 'merged') AS INTEGER) AS merged_pr_count,
+    CAST((SELECT COUNT(*) FROM pr WHERE pr.session_id = s.id AND pr.pr_state = 'closed') AS INTEGER) AS closed_pr_count,
+    CAST(COUNT(mue.id) AS INTEGER) AS event_count,
+    CAST(COUNT(mue.estimated_cost_nanos) AS INTEGER) AS priced_event_count,
+    CAST(COALESCE(SUM(mue.estimated_cost_nanos), 0) AS INTEGER) AS priced_total_nanos,
+    CAST(COUNT(CASE WHEN mue.billing_provider_source = 'observed' AND (
+        mue.estimated_cost_nanos IS NOT NULL OR mue.input_cost_nanos IS NOT NULL OR
+        mue.cached_input_cost_nanos IS NOT NULL OR mue.output_cost_nanos IS NOT NULL
+    ) THEN 1 END) AS INTEGER) AS observed_cost_event_count,
+    CAST(COUNT(CASE WHEN mue.billing_provider_source = 'inferred' AND (
+        mue.estimated_cost_nanos IS NOT NULL OR mue.input_cost_nanos IS NOT NULL OR
+        mue.cached_input_cost_nanos IS NOT NULL OR mue.output_cost_nanos IS NOT NULL
+    ) THEN 1 END) AS INTEGER) AS inferred_cost_event_count,
+    CAST(COUNT(mue.input_cost_nanos) AS INTEGER) AS known_input_count,
+    CAST(COALESCE(SUM(mue.input_cost_nanos), 0) AS INTEGER) AS known_input_nanos,
+    CAST(COALESCE(SUM(CASE WHEN mue.estimated_cost_nanos IS NULL THEN mue.input_cost_nanos END), 0) AS INTEGER) AS unpriced_known_input_nanos,
+    CAST(COUNT(mue.cached_input_cost_nanos) AS INTEGER) AS known_cached_input_count,
+    CAST(COALESCE(SUM(mue.cached_input_cost_nanos), 0) AS INTEGER) AS known_cached_input_nanos,
+    CAST(COALESCE(SUM(CASE WHEN mue.estimated_cost_nanos IS NULL THEN mue.cached_input_cost_nanos END), 0) AS INTEGER) AS unpriced_known_cached_input_nanos,
+    CAST(COUNT(mue.output_cost_nanos) AS INTEGER) AS known_output_count,
+    CAST(COALESCE(SUM(mue.output_cost_nanos), 0) AS INTEGER) AS known_output_nanos,
+    CAST(COALESCE(SUM(CASE WHEN mue.estimated_cost_nanos IS NULL THEN mue.output_cost_nanos END), 0) AS INTEGER) AS unpriced_known_output_nanos
+FROM sessions s
+LEFT JOIN usage_bindings ub ON ub.session_id = s.id
+LEFT JOIN model_usage_events mue ON mue.binding_id = ub.id
+LEFT JOIN session_effort_rollups effort ON effort.session_id = s.id
+WHERE s.project_id = ? AND s.kind = 'worker'
+GROUP BY s.id
+ORDER BY s.num;
+
+-- name: CountProjectOrchestratorGenerations :one
+-- Every orchestrator the project has ever had, retired ones included: the count
+-- is what keeps a lifetime total from being read as the live orchestrator's.
+SELECT CAST(COUNT(*) AS INTEGER)
+FROM sessions
+WHERE project_id = ? AND kind = 'orchestrator';
+
+-- name: CountProjectMergedPRs :one
+-- Reuses the stored pr_state, the single definition of "merged" in AO.
+SELECT CAST(COUNT(*) AS INTEGER)
+FROM pr
+JOIN sessions s ON s.id = pr.session_id
+WHERE s.project_id = ? AND pr.pr_state = 'merged';
+
+-- name: CountProjectUnmeasuredSessions :one
+-- Sessions of either kind for which AO holds no usage event at all. Their spend
+-- is unknown, so every project total above is a stated lower bound.
+SELECT CAST(COUNT(*) AS INTEGER)
+FROM sessions s
+WHERE s.project_id = ?
+  AND NOT EXISTS (
+      SELECT 1
+      FROM usage_bindings ub
+      JOIN model_usage_events mue ON mue.binding_id = ub.id
+      WHERE ub.session_id = s.id
+  );
