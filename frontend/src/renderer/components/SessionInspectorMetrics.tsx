@@ -59,6 +59,7 @@ export function MetricsView({ session }: { session: WorkspaceSession }) {
 					<>
 						<EffortBlock effort={effortData.effort} />
 						<ToolMixBlock mix={effortData.toolMix} timingAvailable={effortData.effort.timingAvailable} />
+						{effortData.scorecard ? <ScoresBlock scorecard={effortData.scorecard} /> : null}
 					</>
 				) : null}
 				{hasUsage && usage ? (
@@ -214,6 +215,73 @@ function ToolMixBlock({ mix, timingAvailable }: { mix: SessionEffort["toolMix"];
 			</ul>
 		</Section>
 	);
+}
+
+const scoreFactorLabelKeys: Record<string, MessageKey> = {
+	delivery_efficiency: "inspector.metrics.scores.factor.delivery_efficiency",
+	exploratory_overhead: "inspector.metrics.scores.factor.exploratory_overhead",
+	governance: "inspector.metrics.scores.factor.governance",
+	steering_load: "inspector.metrics.scores.factor.steering_load",
+	token_efficiency: "inspector.metrics.scores.factor.token_efficiency",
+};
+
+function ScoresBlock({ scorecard }: { scorecard: SessionEffort["scorecard"] }) {
+	const { t } = useTranslation();
+	if (scorecard.factors.length === 0) {
+		return (
+			<Section title={t("inspector.metrics.scores.title")}>
+				<p className={inspectorEmptyClass}>{t("inspector.metrics.scores.noScores")}</p>
+			</Section>
+		);
+	}
+	return (
+		<Section title={t("inspector.metrics.scores.title")}>
+			<div className="mb-1.5 flex items-baseline justify-between gap-2">
+				<span className="text-2xs text-settings-muted">{t("inspector.metrics.scores.overall")}</span>
+				<span className="font-semibold">{scorecard.overall === null ? "—" : scorecard.overall}</span>
+			</div>
+			{scorecard.overall === null ? (
+				<p className={inspectorEmptyClass}>{t("inspector.metrics.scores.overallUnavailable")}</p>
+			) : null}
+			<ul className="flex flex-col gap-1.5">
+				{scorecard.factors.map((factor) => (
+					<li className="flex flex-col gap-0.5" key={factor.factor}>
+						<div className="flex items-baseline justify-between gap-2">
+							<span className="truncate">
+								{scoreFactorLabelKeys[factor.factor] ? t(scoreFactorLabelKeys[factor.factor]) : factor.factor}
+							</span>
+							{factor.present ? (
+								<span className="shrink-0 font-semibold" data-testid={`score-value-${factor.factor}`}>
+									{factor.score}
+								</span>
+							) : null}
+						</div>
+						{factor.present ? (
+							// The evidence is not optional detail: it is what makes the
+							// score auditable.
+							<span className="text-2xs text-settings-muted" data-testid={`score-evidence-${factor.factor}`}>
+								{Object.entries(factor.evidence ?? {})
+									.map(([name, value]) => `${name} ${formatEvidenceValue(value)}`)
+									.join(" · ")}
+							</span>
+						) : (
+							<span className={inspectorEmptyClass}>
+								{t("inspector.metrics.scores.unavailable", { reason: factor.absentReason })}
+							</span>
+						)}
+					</li>
+				))}
+			</ul>
+			<p className={`mt-1.5 ${inspectorEmptyClass}`}>
+				{t("inspector.metrics.scores.rubric", { version: scorecard.rubricVersion })}
+			</p>
+		</Section>
+	);
+}
+
+function formatEvidenceValue(value: number): string {
+	if (Number.isInteger(value)) return String(value);
+	return value.toFixed(2);
 }
 
 function UsageCostTelemetry({ usage }: { usage: SessionUsage }) {

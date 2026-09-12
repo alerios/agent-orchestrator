@@ -207,4 +207,75 @@ describe("MetricsView", () => {
 		render(<MetricsView session={session} />);
 		expect(screen.getByText(/No compactions yet/i)).toBeInTheDocument();
 	});
+
+	it("shows each score with the raw numbers that produced it", () => {
+		mockEffort = {
+			data: {
+				effort: baseEffort,
+				toolMix: [],
+				scorecard: {
+					factors: [
+						{
+							absentReason: "",
+							evidence: { cache_hit_rate: 0.8, input_tokens: 500000 },
+							factor: "token_efficiency",
+							present: true,
+							score: 100,
+						},
+					],
+					overall: 84,
+					rubricVersion: "1.0.0",
+				},
+			},
+			isError: false,
+			isLoading: false,
+		};
+		render(<MetricsView session={session} />);
+		expect(screen.getByText("100")).toBeInTheDocument();
+		// The evidence must be on screen: an unauditable score is worse than none.
+		expect(screen.getByTestId("score-evidence-token_efficiency")).toHaveTextContent("0.8");
+		expect(screen.getByText(/Rubric 1\.0\.0/)).toBeInTheDocument();
+	});
+
+	it("states why an absent factor is absent instead of scoring it zero", () => {
+		mockEffort = {
+			data: {
+				effort: baseEffort,
+				toolMix: [],
+				scorecard: {
+					factors: [
+						{
+							absentReason: "token counters not reported",
+							evidence: {},
+							factor: "token_efficiency",
+							present: false,
+							score: 0,
+						},
+					],
+					overall: null,
+					rubricVersion: "1.0.0",
+				},
+			},
+			isError: false,
+			isLoading: false,
+		};
+		render(<MetricsView session={session} />);
+		expect(screen.getByText(/token counters not reported/i)).toBeInTheDocument();
+		expect(screen.queryByTestId("score-value-token_efficiency")).not.toBeInTheDocument();
+		expect(screen.getByText(/Too few measurable factors/i)).toBeInTheDocument();
+	});
+
+	it("says it cannot score a session with no measurable source", () => {
+		mockEffort = {
+			data: {
+				effort: baseEffort,
+				toolMix: [],
+				scorecard: { factors: [], overall: null, rubricVersion: "1.0.0" },
+			},
+			isError: false,
+			isLoading: false,
+		};
+		render(<MetricsView session={session} />);
+		expect(screen.getByText(/cannot score this session/i)).toBeInTheDocument();
+	});
 });
