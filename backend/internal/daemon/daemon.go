@@ -781,6 +781,9 @@ func Run() error {
 		UsageHooks:         usageCollector,
 		UsageSummary:       usagesvc.NewSummaryReader(store),
 		UsageEffort:        usagesvc.NewEffortService(store),
+		UsageScorecard: usagesvc.NewScorecardService(
+			usagesvc.NewScorecardStoreAdapter(store, usagesvc.NewSummaryReader(store)),
+		),
 		Telemetry:          telemetrySink,
 		Mobile:             mc,
 		DevImport: devimportsvc.New(devimportsvc.Deps{

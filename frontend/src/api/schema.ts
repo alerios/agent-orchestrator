@@ -2862,6 +2862,15 @@ export interface components {
             /** Format: int64 */
             toolCalls: number;
         };
+        ControllersFactorScoreResponse: {
+            absentReason: string;
+            evidence: {
+                [key: string]: number;
+            } | null;
+            factor: string;
+            present: boolean;
+            score: number;
+        };
         ControllersRequestRereviewRequest: {
             /** @description Tracked pull request URL. Required when the session has multiple PRs. */
             pullRequestUrl?: string;
@@ -2880,6 +2889,11 @@ export interface components {
         ControllersResolveReviewCommentResponse: {
             ok: boolean;
         };
+        ControllersScorecardResponse: {
+            factors: components["schemas"]["ControllersFactorScoreResponse"][];
+            overall: null | number;
+            rubricVersion: string;
+        };
         ControllersSecurePairingStatus: {
             active: boolean;
             available: boolean;
@@ -2890,6 +2904,7 @@ export interface components {
         };
         ControllersSessionEffortResponse: {
             effort: components["schemas"]["ControllersEffortResponse"];
+            scorecard: components["schemas"]["ControllersScorecardResponse"];
             toolMix: components["schemas"]["ControllersToolMixResponse"][];
         };
         ControllersSessionView: {

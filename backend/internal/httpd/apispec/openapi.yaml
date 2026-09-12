@@ -8038,6 +8038,30 @@ components:
       - timingAvailable
       - toolCalls
       type: object
+    ControllersFactorScoreResponse:
+      properties:
+        absentReason:
+          type: string
+        evidence:
+          additionalProperties:
+            format: double
+            type: number
+          type:
+          - object
+          - "null"
+        factor:
+          type: string
+        present:
+          type: boolean
+        score:
+          type: integer
+      required:
+      - absentReason
+      - evidence
+      - factor
+      - present
+      - score
+      type: object
     ControllersRequestRereviewRequest:
       properties:
         pullRequestUrl:
@@ -8076,6 +8100,23 @@ components:
       required:
       - ok
       type: object
+    ControllersScorecardResponse:
+      properties:
+        factors:
+          items:
+            $ref: '#/components/schemas/ControllersFactorScoreResponse'
+          type: array
+        overall:
+          type:
+          - "null"
+          - integer
+        rubricVersion:
+          type: string
+      required:
+      - factors
+      - overall
+      - rubricVersion
+      type: object
     ControllersSecurePairingStatus:
       properties:
         active:
@@ -8102,6 +8143,8 @@ components:
       properties:
         effort:
           $ref: '#/components/schemas/ControllersEffortResponse'
+        scorecard:
+          $ref: '#/components/schemas/ControllersScorecardResponse'
         toolMix:
           items:
             $ref: '#/components/schemas/ControllersToolMixResponse'
@@ -8109,6 +8152,7 @@ components:
       required:
       - effort
       - toolMix
+      - scorecard
       type: object
     ControllersSessionView:
       properties:

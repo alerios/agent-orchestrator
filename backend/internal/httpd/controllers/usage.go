@@ -10,6 +10,7 @@ import (
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apispec"
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
+	"github.com/aoagents/agent-orchestrator/backend/internal/service/scoring"
 )
 
 // UsageSummaryService is the controller-facing compact usage read contract.
@@ -23,10 +24,17 @@ type EffortService interface {
 	Get(context.Context, domain.SessionID) (domain.SessionEffort, []domain.ToolMixEntry, bool, error)
 }
 
+// ScorecardService is the controller-facing efficiency-scorecard read
+// contract.
+type ScorecardService interface {
+	Get(context.Context, domain.SessionID) (scoring.Scorecard, error)
+}
+
 // UsageController owns compact dashboard usage routes.
 type UsageController struct {
-	Svc    UsageSummaryService
-	Effort EffortService
+	Svc       UsageSummaryService
+	Effort    EffortService
+	Scorecard ScorecardService
 }
 
 // Register mounts usage routes on the supplied router.
@@ -89,10 +97,20 @@ func (c *UsageController) getSessionEffort(w http.ResponseWriter, r *http.Reques
 		envelope.WriteError(w, r, apierr.NotFound("SESSION_EFFORT_NOT_FOUND", "No recorded telemetry for this session"))
 		return
 	}
-	envelope.WriteJSON(w, http.StatusOK, sessionEffortResponse(effort, mix))
+	var card scoring.Scorecard
+	if c.Scorecard != nil {
+		card, err = c.Scorecard.Get(r.Context(), sessionID)
+		if err != nil {
+			envelope.WriteError(w, r, err)
+			return
+		}
+	}
+	envelope.WriteJSON(w, http.StatusOK, sessionEffortResponse(effort, mix, card))
 }
 
-func sessionEffortResponse(effort domain.SessionEffort, mix []domain.ToolMixEntry) SessionEffortResponse {
+func sessionEffortResponse(
+	effort domain.SessionEffort, mix []domain.ToolMixEntry, card scoring.Scorecard,
+) SessionEffortResponse {
 	toolMix := make([]ToolMixResponse, 0, len(mix))
 	for _, entry := range mix {
 		toolMix = append(toolMix, ToolMixResponse{
@@ -108,7 +126,25 @@ func sessionEffortResponse(effort domain.SessionEffort, mix []domain.ToolMixEntr
 			CommandsRun: effort.CommandsRun, TestsRun: effort.TestsRun,
 			Compactions: effort.Compactions, TimingAvailable: effort.TimingAvailable,
 		},
-		ToolMix: toolMix,
+		ToolMix:   toolMix,
+		Scorecard: scorecardResponse(card),
+	}
+}
+
+func scorecardResponse(card scoring.Scorecard) ScorecardResponse {
+	factors := make([]FactorScoreResponse, 0, len(card.Factors))
+	for _, factor := range card.Factors {
+		evidence := make(map[string]float64, len(factor.Evidence))
+		for key, value := range factor.Evidence {
+			evidence[key] = value
+		}
+		factors = append(factors, FactorScoreResponse{
+			AbsentReason: factor.AbsentReason, Evidence: evidence,
+			Factor: string(factor.Factor), Present: factor.Present, Score: factor.Score,
+		})
+	}
+	return ScorecardResponse{
+		Factors: factors, Overall: card.Overall, RubricVersion: card.RubricVersion,
 	}
 }
 
@@ -144,8 +180,27 @@ func usageTotalsResponse(totals domain.UsageMetricTotals) UsageTotalsResponse {
 // SessionEffortResponse is the effort and tool-mix read model. Every nullable
 // millisecond field is a pointer: null means AO could not measure it.
 type SessionEffortResponse struct {
-	Effort  EffortResponse    `json:"effort"`
-	ToolMix []ToolMixResponse `json:"toolMix"`
+	Effort    EffortResponse    `json:"effort"`
+	ToolMix   []ToolMixResponse `json:"toolMix"`
+	Scorecard ScorecardResponse `json:"scorecard"`
+}
+
+// ScorecardResponse is the efficiency scorecard. Every factor is listed even
+// when absent, so the UI can state what could not be measured.
+type ScorecardResponse struct {
+	Factors       []FactorScoreResponse `json:"factors"`
+	Overall       *int                  `json:"overall"`
+	RubricVersion string                `json:"rubricVersion"`
+}
+
+// FactorScoreResponse is one factor. Score is meaningless when present is
+// false; absentReason then says what was missing.
+type FactorScoreResponse struct {
+	AbsentReason string             `json:"absentReason"`
+	Evidence     map[string]float64 `json:"evidence"`
+	Factor       string             `json:"factor"`
+	Present      bool               `json:"present"`
+	Score        int                `json:"score"`
 }
 
 // EffortResponse carries the per-session counters.
