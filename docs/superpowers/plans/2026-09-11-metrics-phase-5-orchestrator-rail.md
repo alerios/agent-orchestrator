@@ -20,7 +20,7 @@
 - Cost per merged PR divides by merged PRs only. Zero merged PRs yields unavailable, not infinity and not zero.
 - Orchestrators get **only** the Metrics tab. PRs, Reviews, Browser and Files do not apply.
 - The rail must be **collapsed by default** for orchestrators, preserving the existing full-workspace intent recorded at `SessionView.tsx:1080`.
-- **Read `DESIGN.md` before any visual decision**, starting with its "clone agent-orchestrator verbatim" banner — that banner governs the current look and supersedes the older design-reference framing. Build new UI from the existing `@aoagents/product-ui` primitives and `components/ui/*` shadcn components where one fits; do not introduce new visual patterns without explicit approval.
+- **Read `DESIGN.md` before any visual decision**, starting with its "Reference boundary and migration stance" banner (corrected 2026-09-11: an earlier draft cited a "clone agent-orchestrator verbatim" banner that does not exist in this file). The real banner says existing styling is migration debt, not precedent, and warns against copying legacy inconsistency into new work. Build new UI from the existing `@aoagents/product-ui` primitives and `components/ui/*` shadcn components where one fits; do not introduce new visual patterns without explicit approval.
 - When demoing a frontend change, run `ao preview [url]` from inside the session so it renders in the inspector rail's Browser tab, and say "check the Browser tab" in your reply — the panel badges as unseen rather than stealing focus.
 - No hardcoded English in `frontend/src/renderer`; all copy via i18n keys in all eight locale files.
 - Run `npm run lint` before every backend commit; `npm run api` after changing response types.
