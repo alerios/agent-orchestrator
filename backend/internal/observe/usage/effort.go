@@ -20,10 +20,6 @@ var testRunnerPatterns = []string{
 	"pytest", "vitest", "jest", "cargo test", "dotnet test", "mvn test", "rspec",
 }
 
-var readToolNames = map[string]bool{"read": true, "grep": true, "glob": true, "search": true}
-var editToolNames = map[string]bool{"edit": true, "write": true, "multiedit": true, "patch": true}
-var commandToolNames = map[string]bool{"bash": true, "shell": true, "run": true, "terminal": true}
-
 // deriveEffort computes the per-session counter block. Active time is the
 // UNION of timed tool spans, so overlapping calls are not double counted.
 // When no call carries timing, active and idle stay unavailable rather than
@@ -40,13 +36,12 @@ func deriveEffort(
 
 	spans := make([][2]int64, 0, len(calls))
 	for _, call := range calls {
-		name := strings.ToLower(strings.TrimSpace(call.ToolName))
-		switch {
-		case readToolNames[name]:
+		switch domain.ClassifyTool(call.ToolName) {
+		case domain.ToolKindRead:
 			out.FilesRead++
-		case editToolNames[name]:
+		case domain.ToolKindEdit:
 			out.FilesChanged++
-		case commandToolNames[name]:
+		case domain.ToolKindCommand:
 			out.CommandsRun++
 			if isTestCommand(call.InputSummary) {
 				out.TestsRun++

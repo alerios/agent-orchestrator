@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // ToolOutcome is how a tool call ended. Unknown is a real, storable state: a
 // transcript may record that a tool ran without recording how it finished.
@@ -59,4 +62,32 @@ type ToolMixEntry struct {
 	Calls           int64
 	FailedCalls     int64
 	TotalDurationMS *int64
+}
+
+// ToolKind is the coarse classification of a tool by what it does. Both the
+// effort derivation and the scorer need the same buckets, so the mapping lives
+// here rather than being duplicated per package.
+type ToolKind string
+
+// Tool kinds. ToolKindOther covers everything unclassified.
+const (
+	ToolKindRead    ToolKind = "read"
+	ToolKindEdit    ToolKind = "edit"
+	ToolKindCommand ToolKind = "command"
+	ToolKindOther   ToolKind = "other"
+)
+
+// ClassifyTool buckets a provider's tool name. Matching is case-insensitive
+// and trimmed because providers disagree on casing ("Read" vs "read").
+func ClassifyTool(name string) ToolKind {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "read", "grep", "glob", "search":
+		return ToolKindRead
+	case "edit", "write", "multiedit", "patch":
+		return ToolKindEdit
+	case "bash", "shell", "run", "terminal":
+		return ToolKindCommand
+	default:
+		return ToolKindOther
+	}
 }
