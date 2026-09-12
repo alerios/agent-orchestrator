@@ -113,10 +113,10 @@ func scoreSteeringLoad(facts Facts) FactorScore {
 }
 
 func scoreDeliveryEfficiency(facts Facts) FactorScore {
-	if facts.FilesEdited <= 0 {
+	if facts.EditTargets <= 0 {
 		return absent(FactorDeliveryEfficiency, "no file edits observed")
 	}
-	reworkShare := float64(facts.ReworkedFiles) / float64(facts.FilesEdited)
+	reworkShare := float64(facts.RepeatedEditTargets) / float64(facts.EditTargets)
 	score := scaleScore(reworkShare, reworkShareBad, reworkShareGood)
 
 	penalty := int(facts.CIRecoveries) * ciRecoveryPenalty
@@ -126,11 +126,11 @@ func scoreDeliveryEfficiency(facts Facts) FactorScore {
 	score -= penalty
 
 	evidence := Evidence{
-		"ci_recoveries":      float64(facts.CIRecoveries),
-		"files_edited":       float64(facts.FilesEdited),
-		"rework_share":       reworkShare,
-		"reworked_files":     float64(facts.ReworkedFiles),
-		"review_round_trips": float64(facts.ReviewRoundTrips),
+		"ci_recoveries":         float64(facts.CIRecoveries),
+		"edit_targets":          float64(facts.EditTargets),
+		"repeated_edit_targets": float64(facts.RepeatedEditTargets),
+		"rework_share":          reworkShare,
+		"review_round_trips":    float64(facts.ReviewRoundTrips),
 	}
 	if facts.FirstPRAt != nil && !facts.SessionStart.IsZero() {
 		evidence["seconds_to_first_pr"] = facts.FirstPRAt.Sub(facts.SessionStart).Seconds()
@@ -142,6 +142,9 @@ func scoreDeliveryEfficiency(facts Facts) FactorScore {
 // Tests-run is excluded on purpose — it is a command-name heuristic, and a
 // project with a custom test command must never lose points for it.
 func scoreGovernance(facts Facts) FactorScore {
+	if facts.GovernanceAbsentReason != "" {
+		return absent(FactorGovernance, facts.GovernanceAbsentReason)
+	}
 	satisfied := 0
 	if facts.OnBranch {
 		satisfied++

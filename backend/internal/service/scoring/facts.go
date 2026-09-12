@@ -50,11 +50,17 @@ type Facts struct {
 	OnBranch         bool
 	SessionStart     time.Time
 	FirstPRAt        *time.Time
+	// GovernanceAbsentReason, when non-empty, marks the whole governance
+	// factor absent rather than letting an unresolved fact (e.g. a branch
+	// state that is genuinely unknown, as opposed to a scratch project's
+	// legitimate "no branch") silently score as a deliberate false.
+	GovernanceAbsentReason string
 
-	// Rework: files edited three or more times.
-	ReworkedFiles int64
-	// FilesEdited is the denominator for rework; zero means no edits observed.
-	FilesEdited int64
+	// Rework: edit targets (grouped by the tool call's InputSummary — a
+	// free-form title, not necessarily a file path) hit three or more times.
+	RepeatedEditTargets int64
+	// EditTargets is the denominator for rework; zero means no edits observed.
+	EditTargets int64
 }
 
 // Evidence is the raw numbers that produced a score, keyed by a stable name.

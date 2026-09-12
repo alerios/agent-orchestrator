@@ -27,6 +27,15 @@ type scorecardStore interface {
 	// sequence, for deriving steering-load facts (UserTurns, Interrupts). It
 	// is only ever called when HasConversation is true.
 	ConversationTurns(ctx context.Context, id domain.SessionID) ([]domain.ConversationTurn, error)
+	// ConversationMessages returns the session's conversation messages, used
+	// alongside ConversationTurns to determine each turn's Origin (human vs
+	// automation/daemon) via the triggering message's TurnID. It is only ever
+	// called when HasConversation is true.
+	ConversationMessages(ctx context.Context, id domain.SessionID) ([]domain.ConversationMessage, error)
+	// GetProject loads a project record so governance facts can tell a
+	// scratch project's legitimate "no branch" from a branch state that is
+	// genuinely unknown for another reason.
+	GetProject(ctx context.Context, id string) (domain.ProjectRecord, bool, error)
 }
 
 // ScorecardService assembles scoring.Facts from durable session data and
@@ -74,7 +83,7 @@ func (s *ScorecardService) Get(ctx context.Context, id domain.SessionID) (scorin
 		return scoring.Scorecard{}, err
 	}
 	facts.Calls = calls
-	facts.ReworkedFiles, facts.FilesEdited = reworkCounts(calls)
+	facts.RepeatedEditTargets, facts.EditTargets = reworkCounts(calls)
 	facts.RejectedApprovals = countDeniedCalls(calls)
 
 	hasConversation, err := s.store.HasConversation(ctx, id)
@@ -87,7 +96,11 @@ func (s *ScorecardService) Get(ctx context.Context, id domain.SessionID) (scorin
 		if err != nil {
 			return scoring.Scorecard{}, err
 		}
-		facts.UserTurns, facts.Interrupts = turnCounts(turns)
+		messages, err := s.store.ConversationMessages(ctx, id)
+		if err != nil {
+			return scoring.Scorecard{}, err
+		}
+		facts.UserTurns, facts.Interrupts = turnCounts(turns, messages)
 	}
 
 	pr, hasPR, err := s.store.GetDisplayPRFactsForSession(ctx, id)
@@ -100,18 +113,43 @@ func (s *ScorecardService) Get(ctx context.Context, id domain.SessionID) (scorin
 		facts.CI = pr.CI
 		facts.Review = pr.Review
 	}
-	facts.OnBranch = session.Metadata.Branch != ""
 	facts.SessionStart = session.CreatedAt
+
+	// OnBranch: an empty branch is a real, deliberate fact for a scratch
+	// project (scratch work never uses branches). For any other project kind
+	// an empty branch can also mean the branch state is genuinely unknown
+	// (e.g. a failed spawn's teardown clears Metadata.Branch along with the
+	// workspace it destroyed) — that must not silently score as "no branch".
+	project, hasProject, err := s.store.GetProject(ctx, string(session.ProjectID))
+	if err != nil {
+		return scoring.Scorecard{}, err
+	}
+	projectKind := domain.ProjectKindSingleRepo
+	if hasProject {
+		projectKind = project.Kind.WithDefault()
+	}
+	switch {
+	case session.Metadata.Branch != "":
+		facts.OnBranch = true
+	case projectKind == domain.ProjectKindScratch:
+		facts.OnBranch = false
+	default:
+		facts.GovernanceAbsentReason = "branch state unknown for this session"
+	}
 
 	return scoring.Score(facts), nil
 }
 
-// reworkCounts groups edit-tool calls by the path in their InputSummary. A
-// path edited three or more times is reworked. A call whose source did not
-// report a path (empty InputSummary) is excluded from both the numerator and
-// the denominator rather than guessed at.
-func reworkCounts(calls []domain.SessionToolCall) (reworkedFiles, filesEdited int64) {
-	editsByPath := make(map[string]int64)
+// reworkCounts groups edit-tool calls by their InputSummary — the tool call's
+// free-form, human-readable title (e.g. "read file", "npm test"), not
+// necessarily a file path. A summary edited three or more times is a
+// repeated edit target. A call whose source did not report a summary (empty
+// InputSummary) is excluded from both the numerator and the denominator
+// rather than guessed at. Precise file-level rework detection would require
+// the tool decoder to report an actual path, which not all sources currently
+// do.
+func reworkCounts(calls []domain.SessionToolCall) (repeatedEditTargets, editTargets int64) {
+	editsBySummary := make(map[string]int64)
 	for _, call := range calls {
 		if domain.ClassifyTool(call.ToolName) != domain.ToolKindEdit {
 			continue
@@ -119,15 +157,15 @@ func reworkCounts(calls []domain.SessionToolCall) (reworkedFiles, filesEdited in
 		if call.InputSummary == "" {
 			continue
 		}
-		editsByPath[call.InputSummary]++
+		editsBySummary[call.InputSummary]++
 	}
-	for _, edits := range editsByPath {
-		filesEdited++
+	for _, edits := range editsBySummary {
+		editTargets++
 		if edits >= 3 {
-			reworkedFiles++
+			repeatedEditTargets++
 		}
 	}
-	return reworkedFiles, filesEdited
+	return repeatedEditTargets, editTargets
 }
 
 // countDeniedCalls counts tool calls the user (or an approval policy) denied.
@@ -141,13 +179,30 @@ func countDeniedCalls(calls []domain.SessionToolCall) int64 {
 	return denied
 }
 
-// turnCounts derives steering-load turn facts from a conversation's turns.
-// Every ConversationTurn is one user-initiated request/work cycle, so the
-// turn count itself is UserTurns; scoring treats the first as the initial
-// prompt and anything beyond it as steering.
-func turnCounts(turns []domain.ConversationTurn) (userTurns, interrupts int64) {
+// turnCounts derives steering-load turn facts from a conversation's turns and
+// messages. Not every turn is human-initiated: RelayChatTurnWithID
+// (orchestrator-to-worker relays) and RetryTurn (AO-initiated retries) create
+// turns with Origin: domain.MessageOriginAutomation, and counting those as
+// UserTurns would score an orchestrator-driven session no human ever touched
+// as if it were heavily human-steered. Only a turn whose triggering message
+// has Origin == domain.MessageOriginHuman counts toward UserTurns. Each turn
+// has exactly one triggering (role=user) message, joined here by TurnID.
+//
+// Interrupts is unrelated to who initiated a turn — it counts how a turn
+// ended (TurnStateInterrupted) — so it is unaffected by origin and still
+// counted over every turn.
+func turnCounts(turns []domain.ConversationTurn, messages []domain.ConversationMessage) (userTurns, interrupts int64) {
+	originByTurn := make(map[string]domain.MessageOrigin, len(messages))
+	for _, msg := range messages {
+		if msg.TurnID == "" || msg.Role != domain.MessageRoleUser {
+			continue
+		}
+		originByTurn[msg.TurnID] = msg.Origin
+	}
 	for _, turn := range turns {
-		userTurns++
+		if originByTurn[turn.ID] == domain.MessageOriginHuman {
+			userTurns++
+		}
 		if turn.State == domain.TurnStateInterrupted {
 			interrupts++
 		}
@@ -166,6 +221,7 @@ type scorecardRawStore interface {
 	ConversationForSession(ctx context.Context, id domain.SessionID) (domain.ConversationRecord, error)
 	HasConversationTurns(ctx context.Context, conversationID string) (bool, error)
 	LoadConversationSnapshot(ctx context.Context, conversationID string) (store.ConversationSnapshot, error)
+	GetProject(ctx context.Context, id string) (domain.ProjectRecord, bool, error)
 }
 
 // usageSummaryGetter is the narrow SummaryReader contract ScorecardStoreAdapter
@@ -250,4 +306,28 @@ func (a ScorecardStoreAdapter) ConversationTurns(
 		return nil, err
 	}
 	return snapshot.Turns, nil
+}
+
+// ConversationMessages loads the session's conversation and returns its
+// messages. Callers must only invoke this after HasConversation has reported
+// true.
+func (a ScorecardStoreAdapter) ConversationMessages(
+	ctx context.Context, id domain.SessionID,
+) ([]domain.ConversationMessage, error) {
+	conv, err := a.Store.ConversationForSession(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	snapshot, err := a.Store.LoadConversationSnapshot(ctx, conv.ID)
+	if err != nil {
+		return nil, err
+	}
+	return snapshot.Messages, nil
+}
+
+// GetProject delegates to the durable store.
+func (a ScorecardStoreAdapter) GetProject(
+	ctx context.Context, id string,
+) (domain.ProjectRecord, bool, error) {
+	return a.Store.GetProject(ctx, id)
 }

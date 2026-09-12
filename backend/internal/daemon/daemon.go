@@ -784,8 +784,8 @@ func Run() error {
 		UsageScorecard: usagesvc.NewScorecardService(
 			usagesvc.NewScorecardStoreAdapter(store, usagesvc.NewSummaryReader(store)),
 		),
-		Telemetry:          telemetrySink,
-		Mobile:             mc,
+		Telemetry: telemetrySink,
+		Mobile:    mc,
 		DevImport: devimportsvc.New(devimportsvc.Deps{
 			Store:         store,
 			TargetDataDir: cfg.DataDir,

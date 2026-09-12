@@ -13,7 +13,7 @@ func baseFacts() scoring.Facts {
 	return scoring.Facts{
 		CachedInputTokens:       ptr(400_000),
 		CI:                      domain.CIPassing,
-		FilesEdited:             10,
+		EditTargets:             10,
 		HasCertifiedUsageSource: true,
 		HasConversation:         true,
 		HasPR:                   true,
@@ -22,7 +22,7 @@ func baseFacts() scoring.Facts {
 		OutputTokens:            ptr(25_000),
 		PRMerged:                true,
 		Review:                  domain.ReviewApproved,
-		ReworkedFiles:           1,
+		RepeatedEditTargets:     1,
 		UserTurns:               1,
 	}
 }
@@ -169,8 +169,8 @@ func TestSteeringLoadAbsentWithoutConversation(t *testing.T) {
 
 func TestDeliveryEfficiencyPenalizesReworkAndCIRecovery(t *testing.T) {
 	facts := baseFacts()
-	facts.ReworkedFiles = 6
-	facts.FilesEdited = 10 // 0.6 rework share: the bad threshold
+	facts.RepeatedEditTargets = 6
+	facts.EditTargets = 10 // 0.6 rework share: the bad threshold
 	facts.CIRecoveries = 2 // 30 further points
 
 	got := factorByName(t, scoring.Score(facts), scoring.FactorDeliveryEfficiency)
@@ -185,7 +185,7 @@ func TestDeliveryEfficiencyPenalizesReworkAndCIRecovery(t *testing.T) {
 
 func TestDeliveryEfficiencyAbsentWithoutEdits(t *testing.T) {
 	facts := baseFacts()
-	facts.FilesEdited = 0
+	facts.EditTargets = 0
 
 	got := factorByName(t, scoring.Score(facts), scoring.FactorDeliveryEfficiency)
 
@@ -233,7 +233,7 @@ func TestOverallIsNilWithTooFewFactors(t *testing.T) {
 	facts := baseFacts()
 	facts.InputTokens = nil       // drops token efficiency
 	facts.HasConversation = false // drops steering
-	facts.FilesEdited = 0         // drops delivery and exploration
+	facts.EditTargets = 0         // drops delivery and exploration
 	facts.Calls = nil
 
 	card := scoring.Score(facts)

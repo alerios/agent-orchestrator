@@ -12,14 +12,17 @@ import (
 // a test sets are non-zero; every unset method returns the store's zero
 // value, which is what an absent fact looks like.
 type stubScorecardStore struct {
-	session domain.SessionRecord
-	usage   domain.SessionUsageSummary
-	effort  domain.SessionEffort
-	calls   []domain.SessionToolCall
-	pr      domain.PRFacts
-	hasPR   bool
-	hasConv bool
-	turns   []domain.ConversationTurn
+	session  domain.SessionRecord
+	usage    domain.SessionUsageSummary
+	effort   domain.SessionEffort
+	calls    []domain.SessionToolCall
+	pr       domain.PRFacts
+	hasPR    bool
+	hasConv  bool
+	turns    []domain.ConversationTurn
+	messages []domain.ConversationMessage
+	project  domain.ProjectRecord
+	hasProj  bool
 }
 
 func (s stubScorecardStore) GetSession(context.Context, domain.SessionID) (domain.SessionRecord, bool, error) {
@@ -48,6 +51,14 @@ func (s stubScorecardStore) HasConversation(context.Context, domain.SessionID) (
 
 func (s stubScorecardStore) ConversationTurns(context.Context, domain.SessionID) ([]domain.ConversationTurn, error) {
 	return s.turns, nil
+}
+
+func (s stubScorecardStore) ConversationMessages(context.Context, domain.SessionID) ([]domain.ConversationMessage, error) {
+	return s.messages, nil
+}
+
+func (s stubScorecardStore) GetProject(context.Context, string) (domain.ProjectRecord, bool, error) {
+	return s.project, s.hasProj, nil
 }
 
 func ptr(v int64) *int64 { return &v }
@@ -119,11 +130,11 @@ func TestScorecardServiceReworkCountsExcludeUnreportedPaths(t *testing.T) {
 	if !delivery.Present {
 		t.Fatalf("delivery efficiency absent (%s), want present", delivery.AbsentReason)
 	}
-	if got := delivery.Evidence["files_edited"]; got != 2 {
-		t.Fatalf("files_edited = %v, want 2 (unreported path excluded)", got)
+	if got := delivery.Evidence["edit_targets"]; got != 2 {
+		t.Fatalf("edit_targets = %v, want 2 (unreported path excluded)", got)
 	}
-	if got := delivery.Evidence["reworked_files"]; got != 1 {
-		t.Fatalf("reworked_files = %v, want 1", got)
+	if got := delivery.Evidence["repeated_edit_targets"]; got != 1 {
+		t.Fatalf("repeated_edit_targets = %v, want 1", got)
 	}
 }
 
@@ -159,6 +170,16 @@ func TestScorecardServiceCountsTurnsAndInterrupts(t *testing.T) {
 			{ID: "t1", State: domain.TurnStateCompleted},
 			{ID: "t2", State: domain.TurnStateInterrupted},
 			{ID: "t3", State: domain.TurnStateCompleted},
+			// t4 is an orchestrator-driven relay (RelayChatTurnWithID): no
+			// human ever touched it, so it must not count as UserTurns even
+			// though it is a real conversation turn.
+			{ID: "t4", State: domain.TurnStateCompleted},
+		},
+		messages: []domain.ConversationMessage{
+			{TurnID: "t1", Role: domain.MessageRoleUser, Origin: domain.MessageOriginHuman},
+			{TurnID: "t2", Role: domain.MessageRoleUser, Origin: domain.MessageOriginHuman},
+			{TurnID: "t3", Role: domain.MessageRoleUser, Origin: domain.MessageOriginHuman},
+			{TurnID: "t4", Role: domain.MessageRoleUser, Origin: domain.MessageOriginAutomation},
 		},
 	})
 
@@ -171,7 +192,7 @@ func TestScorecardServiceCountsTurnsAndInterrupts(t *testing.T) {
 		t.Fatalf("steering load absent (%s), want present", steering.AbsentReason)
 	}
 	if got := steering.Evidence["user_turns"]; got != 3 {
-		t.Fatalf("user_turns = %v, want 3", got)
+		t.Fatalf("user_turns = %v, want 3 (automation-driven t4 excluded)", got)
 	}
 	if got := steering.Evidence["interrupts"]; got != 1 {
 		t.Fatalf("interrupts = %v, want 1", got)
