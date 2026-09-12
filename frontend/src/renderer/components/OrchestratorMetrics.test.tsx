@@ -217,4 +217,49 @@ describe("OrchestratorMetrics", () => {
 		render(<OrchestratorMetrics session={session} />);
 		expect(screen.getByText(/roll-up is unavailable/i)).toBeInTheDocument();
 	});
+
+	it("shows <1% rather than a misleading 0% for a real sub-1% share", () => {
+		mockRollup = {
+			data: {
+				efficiency: { costPerMergedPrNanos: null, isLowerBound: false, orchestratorShare: 0.004, workerShare: 0.996 },
+				mergedPrs: 0,
+				orchestratorGenerations: 1,
+				orchestratorTotals: { estimatedCost: { totalNanos: 1_000_000_000 }, processedTokens: 10 },
+				projectId: "proj-1",
+				unmeasuredSessions: 0,
+				workerTotals: { estimatedCost: { totalNanos: 1_000_000_000 }, processedTokens: 10 },
+				workers: [],
+			},
+			isError: false,
+			isLoading: false,
+		};
+		render(<OrchestratorMetrics session={session} />);
+		expect(screen.getByTestId("rollup-split-orchestrator")).toHaveTextContent("<1%");
+		expect(screen.getByTestId("rollup-split-workers")).toHaveTextContent(">99%");
+	});
+
+	it("does not show Unavailable for this orchestrator's own stats while its own queries are still loading, even once the roll-up (cached from a remount) already has data", () => {
+		mockRollup = {
+			data: {
+				efficiency: { costPerMergedPrNanos: null, isLowerBound: false, orchestratorShare: 0.5, workerShare: 0.5 },
+				mergedPrs: 0,
+				orchestratorGenerations: 1,
+				orchestratorTotals: { estimatedCost: { totalNanos: 1_000_000_000 }, processedTokens: 10 },
+				projectId: "proj-1",
+				unmeasuredSessions: 0,
+				workerTotals: { estimatedCost: { totalNanos: 1_000_000_000 }, processedTokens: 10 },
+				workers: [],
+			},
+			isError: false,
+			isLoading: false,
+		};
+		mockUsage = { data: undefined, isError: false, isLoading: true };
+		mockEffort = { data: undefined, isError: false, isLoading: true };
+		render(<OrchestratorMetrics session={session} />);
+		expect(screen.queryByTestId("rollup-this-orchestrator-cost")).not.toBeInTheDocument();
+		expect(screen.queryByText(/unavailable/i)).not.toBeInTheDocument();
+		expect(screen.getByText(/loading/i)).toBeInTheDocument();
+		mockUsage = { data: undefined, isError: false, isLoading: false };
+		mockEffort = { data: undefined, isError: false, isLoading: false };
+	});
 });

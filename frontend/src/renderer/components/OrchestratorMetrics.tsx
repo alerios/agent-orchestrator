@@ -47,7 +47,7 @@ export function OrchestratorMetrics({ session }: { session: WorkspaceSession }) 
 	const ownEffortQuery = useSessionEffort(session.id, true);
 	const rollup = rollupQuery.data;
 
-	if (rollupQuery.isLoading) {
+	if (rollupQuery.isLoading || ownUsageQuery.isLoading || ownEffortQuery.isLoading) {
 		return (
 			<div role="tabpanel">
 				<Section title={t("inspector.metrics")}>
@@ -260,5 +260,8 @@ function formatTokens(processedTokens: number | null | undefined): string | null
 // Shares arrive as fractions of combined spend. Null is handled by the caller —
 // it means "no measured basis", which is not the same as a real 0%.
 function formatShare(share: number): string {
-	return `${Math.round(share * 100)}%`;
+	const rounded = Math.round(share * 100);
+	if (rounded <= 0 && share > 0) return "<1%";
+	if (rounded >= 100 && share < 1) return ">99%";
+	return `${rounded}%`;
 }
