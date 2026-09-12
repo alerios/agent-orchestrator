@@ -1185,9 +1185,15 @@ func (s *Store) ProjectUsageRollup(
 }
 
 // workerOutcomeFromGen classifies a worker by AO's own stored delivery facts
-// only. A live session is active; a finished one that merged is merged; one
-// whose PRs were all closed unmerged failed; one that ended with nothing to
-// show was abandoned. Nothing here is inferred from absence of a hook.
+// only. Merged status is checked first, regardless of whether the session is
+// still running, so a still-active worker that has already merged a PR is
+// reported as merged rather than active. Otherwise: a live session is active;
+// a terminated one whose PRs were all closed unmerged is failed; one that
+// ended with nothing to show was abandoned. "Failed" here means the session
+// terminated with a PR that was closed without merging — a distinct concept
+// from domain.StatusCIFailed (CI failure); this is the single place that
+// defines "failed" for this rollup, so if the definition changes, change it
+// here. Nothing here is inferred from absence of a hook.
 func workerOutcomeFromGen(row gen.ListProjectWorkerUsageRowsRow) domain.WorkerOutcome {
 	switch {
 	case row.MergedPRCount > 0:

@@ -426,8 +426,10 @@ type WorkerUsageRow struct {
 // orchestrator per project. OrchestratorGenerations counts how many
 // orchestrator sessions the project has had, so a lifetime total is never
 // mistaken for the current orchestrator's own spend. UnmeasuredSessions is the
-// count whose usage AO could not observe, which makes every total a stated
-// lower bound rather than a false precision.
+// count whose usage AO could not observe, spanning sessions of either kind —
+// orchestrator and worker — which makes both OrchestratorTotals and
+// WorkerTotals stated lower bounds, not just the Workers list, whenever it is
+// nonzero rather than a false precision.
 type ProjectUsageRollup struct {
 	MergedPRs               int64
 	OrchestratorGenerations int64
