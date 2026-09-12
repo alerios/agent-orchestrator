@@ -2352,6 +2352,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/usage/projects/{projectId}/rollup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the orchestrator-rail usage roll-up for one project */
+        get: operations["getProjectUsageRollup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/usage/sessions": {
         parameters: {
             query?: never;
@@ -2871,6 +2888,41 @@ export interface components {
             present: boolean;
             score: number;
         };
+        ControllersOrchestratorEfficiencyResponse: {
+            /**
+             * Format: int64
+             * @description Combined spend divided by merged PRs. Null with no merged PRs to divide by, which is distinct from a real zero.
+             */
+            costPerMergedPrNanos: null | number;
+            /** @description True when the underlying spend is known to be understated: unmeasured sessions, or partial cost coverage on either side. */
+            isLowerBound: boolean;
+            /** @description Orchestrator fraction of combined spend. Null when there is no measured basis for a share. */
+            orchestratorShare: null | number;
+            /** @description Worker fraction of combined spend. Null when there is no measured basis for a share. */
+            workerShare: null | number;
+        };
+        ControllersProjectUsageRollupResponse: {
+            efficiency: components["schemas"]["ControllersOrchestratorEfficiencyResponse"];
+            /**
+             * Format: int64
+             * @description Merged pull requests attributed to this project. Only ever a divisor for costPerMergedPrNanos.
+             */
+            mergedPrs: number;
+            /**
+             * Format: int64
+             * @description How many orchestrator sessions the project has had, so a lifetime total is not mistaken for the current orchestrator's own spend.
+             */
+            orchestratorGenerations: number;
+            orchestratorTotals: components["schemas"]["UsageTotalsResponse"];
+            projectId: string;
+            /**
+             * Format: int64
+             * @description Sessions of either kind whose usage AO could not observe. Nonzero makes both totals lower bounds.
+             */
+            unmeasuredSessions: number;
+            workerTotals: components["schemas"]["UsageTotalsResponse"];
+            workers: components["schemas"]["ControllersWorkerUsageRowResponse"][];
+        };
         ControllersRequestRereviewRequest: {
             /** @description Tracked pull request URL. Required when the session has multiple PRs. */
             pullRequestUrl?: string;
@@ -2969,6 +3021,22 @@ export interface components {
         };
         ControllersUpdateCloudOfferingRequest: {
             enabled: null | boolean;
+        };
+        ControllersWorkerUsageRowResponse: {
+            /**
+             * Format: int64
+             * @description Wall-clock duration. Null when AO could not measure it.
+             */
+            durationMs: null | number;
+            estimatedCost: null | components["schemas"]["EstimatedCostResponse"];
+            harness: string;
+            /** @description Whether AO had a certified usage source for this session. */
+            measured: boolean;
+            modelId: string;
+            /** @enum {string} */
+            outcome: "active" | "merged" | "abandoned" | "failed";
+            sessionId: string;
+            title: string;
         };
         ConversationAccountPayload: {
             authMode?: string;
@@ -12899,6 +12967,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SystemRequirementsResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    getProjectUsageRollup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project identifier (registry key). */
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControllersProjectUsageRollupResponse"];
                 };
             };
             /** @description Internal Server Error */

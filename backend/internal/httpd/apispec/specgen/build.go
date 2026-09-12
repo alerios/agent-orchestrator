@@ -720,6 +720,16 @@ func usageOperations() []operation {
 				{http.StatusNotImplemented, envelope.APIError{}},
 			},
 		},
+		{
+			method: http.MethodGet, path: "/api/v1/usage/projects/{projectId}/rollup", id: "getProjectUsageRollup", tag: "usage",
+			summary:    "Get the orchestrator-rail usage roll-up for one project",
+			pathParams: []any{controllers.UsageProjectIDParam{}},
+			resps: []respUnit{
+				{http.StatusOK, controllers.ProjectUsageRollupResponse{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
 	}
 }
 

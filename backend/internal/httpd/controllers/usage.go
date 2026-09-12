@@ -11,6 +11,7 @@ import (
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apispec"
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
 	"github.com/aoagents/agent-orchestrator/backend/internal/service/scoring"
+	"github.com/aoagents/agent-orchestrator/backend/internal/service/usage"
 )
 
 // UsageSummaryService is the controller-facing compact usage read contract.
@@ -30,11 +31,17 @@ type ScorecardService interface {
 	Get(context.Context, domain.SessionID) (scoring.Scorecard, error)
 }
 
+// RollupService is the controller-facing orchestrator-rail read contract.
+type RollupService interface {
+	ProjectUsageRollup(context.Context, domain.ProjectID) (domain.ProjectUsageRollup, error)
+}
+
 // UsageController owns compact dashboard usage routes.
 type UsageController struct {
 	Svc       UsageSummaryService
 	Effort    EffortService
 	Scorecard ScorecardService
+	Rollup    RollupService
 }
 
 // Register mounts usage routes on the supplied router.
@@ -42,6 +49,7 @@ func (c *UsageController) Register(r chi.Router) {
 	r.Get("/usage/sessions", c.listSessions)
 	r.Get("/usage/sessions/{sessionId}", c.getSession)
 	r.Get("/usage/sessions/{sessionId}/effort", c.getSessionEffort)
+	r.Get("/usage/projects/{projectId}/rollup", c.getProjectRollup)
 }
 
 func (c *UsageController) listSessions(w http.ResponseWriter, r *http.Request) {
@@ -106,6 +114,85 @@ func (c *UsageController) getSessionEffort(w http.ResponseWriter, r *http.Reques
 		}
 	}
 	envelope.WriteJSON(w, http.StatusOK, sessionEffortResponse(effort, mix, card))
+}
+
+func (c *UsageController) getProjectRollup(w http.ResponseWriter, r *http.Request) {
+	if c.Rollup == nil {
+		apispec.NotImplemented(w, r, "GET", "/api/v1/usage/projects/{projectId}/rollup")
+		return
+	}
+	projectID := domain.ProjectID(chi.URLParam(r, "projectId"))
+	rollup, err := c.Rollup.ProjectUsageRollup(r.Context(), projectID)
+	if err != nil {
+		envelope.WriteError(w, r, err)
+		return
+	}
+	envelope.WriteJSON(w, http.StatusOK, projectUsageRollupResponse(rollup))
+}
+
+func projectUsageRollupResponse(rollup domain.ProjectUsageRollup) ProjectUsageRollupResponse {
+	efficiency := usage.DeriveOrchestratorEfficiency(rollup)
+	workers := make([]WorkerUsageRowResponse, 0, len(rollup.Workers))
+	for _, worker := range rollup.Workers {
+		workers = append(workers, WorkerUsageRowResponse{
+			DurationMs: worker.DurationMS, EstimatedCost: estimatedCostResponse(worker.EstimatedCost),
+			Harness: string(worker.Harness), Measured: worker.Measured, ModelID: worker.ModelID,
+			Outcome: string(worker.Outcome), SessionID: worker.SessionID, Title: worker.Title,
+		})
+	}
+	return ProjectUsageRollupResponse{
+		Efficiency: OrchestratorEfficiencyResponse{
+			CostPerMergedPrNanos: efficiency.CostPerMergedPRNanos,
+			IsLowerBound:         efficiency.IsLowerBound,
+			OrchestratorShare:    efficiency.OrchestratorShare,
+			WorkerShare:          efficiency.WorkerShare,
+		},
+		MergedPrs:               rollup.MergedPRs,
+		OrchestratorGenerations: rollup.OrchestratorGenerations,
+		OrchestratorTotals:      usageTotalsResponse(rollup.OrchestratorTotals),
+		ProjectID:               rollup.ProjectID,
+		UnmeasuredSessions:      rollup.UnmeasuredSessions,
+		WorkerTotals:            usageTotalsResponse(rollup.WorkerTotals),
+		Workers:                 workers,
+	}
+}
+
+// ProjectUsageRollupResponse is the orchestrator-rail read model for one
+// project. orchestratorTotals and workerTotals are stated lower bounds
+// whenever unmeasuredSessions is nonzero: that count spans sessions of either
+// kind, so it taints both sides rather than the workers list alone.
+type ProjectUsageRollupResponse struct {
+	Efficiency              OrchestratorEfficiencyResponse `json:"efficiency"`
+	MergedPrs               int64                          `json:"mergedPrs" minimum:"0" description:"Merged pull requests attributed to this project. Only ever a divisor for costPerMergedPrNanos."`
+	OrchestratorGenerations int64                          `json:"orchestratorGenerations" minimum:"0" description:"How many orchestrator sessions the project has had, so a lifetime total is not mistaken for the current orchestrator's own spend."`
+	OrchestratorTotals      UsageTotalsResponse            `json:"orchestratorTotals"`
+	ProjectID               domain.ProjectID               `json:"projectId"`
+	UnmeasuredSessions      int64                          `json:"unmeasuredSessions" minimum:"0" description:"Sessions of either kind whose usage AO could not observe. Nonzero makes both totals lower bounds."`
+	WorkerTotals            UsageTotalsResponse            `json:"workerTotals"`
+	Workers                 []WorkerUsageRowResponse       `json:"workers"`
+}
+
+// OrchestratorEfficiencyResponse is the derived spend split and delivery cost.
+// Every ratio is null rather than zero when the evidence does not support it.
+type OrchestratorEfficiencyResponse struct {
+	CostPerMergedPrNanos *int64   `json:"costPerMergedPrNanos" minimum:"0" format:"int64" description:"Combined spend divided by merged PRs. Null with no merged PRs to divide by, which is distinct from a real zero."`
+	IsLowerBound         bool     `json:"isLowerBound" description:"True when the underlying spend is known to be understated: unmeasured sessions, or partial cost coverage on either side."`
+	OrchestratorShare    *float64 `json:"orchestratorShare" minimum:"0" maximum:"1" description:"Orchestrator fraction of combined spend. Null when there is no measured basis for a share."`
+	WorkerShare          *float64 `json:"workerShare" minimum:"0" maximum:"1" description:"Worker fraction of combined spend. Null when there is no measured basis for a share."`
+}
+
+// WorkerUsageRowResponse is one worker's line in the roll-up. measured is
+// false when AO had no certified usage source: the cost is unknown, not zero,
+// and estimatedCost is then null.
+type WorkerUsageRowResponse struct {
+	DurationMs    *int64                 `json:"durationMs" minimum:"0" format:"int64" description:"Wall-clock duration. Null when AO could not measure it."`
+	EstimatedCost *EstimatedCostResponse `json:"estimatedCost"`
+	Harness       string                 `json:"harness"`
+	Measured      bool                   `json:"measured" description:"Whether AO had a certified usage source for this session."`
+	ModelID       string                 `json:"modelId"`
+	Outcome       string                 `json:"outcome" enum:"active,merged,abandoned,failed"`
+	SessionID     domain.SessionID       `json:"sessionId"`
+	Title         string                 `json:"title"`
 }
 
 func sessionEffortResponse(

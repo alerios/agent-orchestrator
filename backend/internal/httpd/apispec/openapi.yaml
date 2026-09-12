@@ -6676,6 +6676,39 @@ paths:
       summary: Check local machine readiness (git, tmux, agent harness, gh)
       tags:
       - system
+  /api/v1/usage/projects/{projectId}/rollup:
+    get:
+      operationId: getProjectUsageRollup
+      parameters:
+      - description: Project identifier (registry key).
+        in: path
+        name: projectId
+        required: true
+        schema:
+          description: Project identifier (registry key).
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControllersProjectUsageRollupResponse'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Get the orchestrator-rail usage roll-up for one project
+      tags:
+      - usage
   /api/v1/usage/sessions:
     get:
       operationId: listCompactSessionUsage
@@ -8062,6 +8095,84 @@ components:
       - present
       - score
       type: object
+    ControllersOrchestratorEfficiencyResponse:
+      properties:
+        costPerMergedPrNanos:
+          description: Combined spend divided by merged PRs. Null with no merged PRs
+            to divide by, which is distinct from a real zero.
+          format: int64
+          minimum: 0
+          type:
+          - "null"
+          - integer
+        isLowerBound:
+          description: 'True when the underlying spend is known to be understated:
+            unmeasured sessions, or partial cost coverage on either side.'
+          type: boolean
+        orchestratorShare:
+          description: Orchestrator fraction of combined spend. Null when there is
+            no measured basis for a share.
+          maximum: 1
+          minimum: 0
+          type:
+          - "null"
+          - number
+        workerShare:
+          description: Worker fraction of combined spend. Null when there is no measured
+            basis for a share.
+          maximum: 1
+          minimum: 0
+          type:
+          - "null"
+          - number
+      required:
+      - costPerMergedPrNanos
+      - isLowerBound
+      - orchestratorShare
+      - workerShare
+      type: object
+    ControllersProjectUsageRollupResponse:
+      properties:
+        efficiency:
+          $ref: '#/components/schemas/ControllersOrchestratorEfficiencyResponse'
+        mergedPrs:
+          description: Merged pull requests attributed to this project. Only ever
+            a divisor for costPerMergedPrNanos.
+          format: int64
+          minimum: 0
+          type: integer
+        orchestratorGenerations:
+          description: How many orchestrator sessions the project has had, so a lifetime
+            total is not mistaken for the current orchestrator's own spend.
+          format: int64
+          minimum: 0
+          type: integer
+        orchestratorTotals:
+          $ref: '#/components/schemas/UsageTotalsResponse'
+        projectId:
+          type: string
+        unmeasuredSessions:
+          description: Sessions of either kind whose usage AO could not observe. Nonzero
+            makes both totals lower bounds.
+          format: int64
+          minimum: 0
+          type: integer
+        workerTotals:
+          $ref: '#/components/schemas/UsageTotalsResponse'
+        workers:
+          items:
+            $ref: '#/components/schemas/ControllersWorkerUsageRowResponse'
+          type: array
+      required:
+      - efficiency
+      - mergedPrs
+      - orchestratorGenerations
+      - orchestratorTotals
+      - projectId
+      - unmeasuredSessions
+      - workerTotals
+      - workers
+      type: object
     ControllersRequestRereviewRequest:
       properties:
         pullRequestUrl:
@@ -8372,6 +8483,47 @@ components:
           - boolean
       required:
       - enabled
+      type: object
+    ControllersWorkerUsageRowResponse:
+      properties:
+        durationMs:
+          description: Wall-clock duration. Null when AO could not measure it.
+          format: int64
+          minimum: 0
+          type:
+          - "null"
+          - integer
+        estimatedCost:
+          anyOf:
+          - type: "null"
+          - $ref: '#/components/schemas/EstimatedCostResponse'
+        harness:
+          type: string
+        measured:
+          description: Whether AO had a certified usage source for this session.
+          type: boolean
+        modelId:
+          type: string
+        outcome:
+          enum:
+          - active
+          - merged
+          - abandoned
+          - failed
+          type: string
+        sessionId:
+          type: string
+        title:
+          type: string
+      required:
+      - durationMs
+      - estimatedCost
+      - harness
+      - measured
+      - modelId
+      - outcome
+      - sessionId
+      - title
       type: object
     ConversationAccountPayload:
       properties:

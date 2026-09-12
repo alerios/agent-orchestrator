@@ -35,6 +35,12 @@ type ProjectIDParam struct {
 	ID string `path:"id" description:"Project identifier (registry key)."`
 }
 
+// UsageProjectIDParam is the {projectId} path parameter for project-scoped
+// usage roll-ups.
+type UsageProjectIDParam struct {
+	ProjectID string `path:"projectId" description:"Project identifier (registry key)."`
+}
+
 // AgentIDParam is the {agent} path parameter for one-agent catalog probes.
 type AgentIDParam struct {
 	Agent string `path:"agent" description:"Agent adapter identifier."`
