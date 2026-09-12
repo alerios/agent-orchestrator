@@ -191,6 +191,24 @@ the repo root, and "19 skills on the reference machine" — so it would need
 de-localizing before it could be offered upstream. Kept here as local
 reference material.
 
+### `local/integration` — a separate, larger body of local-only work
+
+Deliberately **not** one of the 5 standalone patches above and not tracked in
+this index: `local/integration` carries its own prior, unrelated local
+development (including a renderer-owned chat-draft persistence layer —
+`frontend/src/renderer/lib/chat-drafts.ts` and friends — that does not exist
+on `origin/main` at all) plus a 5-phase session-metrics/efficiency-scoring
+feature built on top of it. Confirmed by attempting to cherry-pick a bug fix
+from it onto a fresh `origin/main`-based branch: the target file doesn't
+exist there, so the patch has no independent base to stand on the way the 5
+patches above do.
+
+If any piece of `local/integration`'s work is ever meant to go upstream, it
+would need its own from-scratch patch extraction against whatever
+`chat-drafts.ts`/the metrics feature actually depend on — not a cherry-pick —
+since none of it was built with "stands alone against `origin/main`" as a
+constraint the way this index's 5 patches were.
+
 ## Gotchas
 
 **`internal/service/agent` fails ~21 tests in this environment regardless of
