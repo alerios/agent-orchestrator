@@ -52,7 +52,7 @@ const (
 	ciRecoveryCap     = 60
 )
 
-// Governance is structural: five facts AO owns. Each contributes equally.
+// Governance is structural: four facts AO owns. Each contributes equally.
 // Tests-run is deliberately NOT one of them — it is a command-name heuristic,
 // so a project with a custom test command must never be scored down for it.
 // CI passing is the evidence for "was this verified".

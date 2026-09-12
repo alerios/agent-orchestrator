@@ -29,9 +29,9 @@ type Facts struct {
 	OutputTokens      *int64
 
 	// Effort and tool facts, from the Phase 3 rollup.
-	Effort   domain.SessionEffort
-	ToolMix  []domain.ToolMixEntry
-	Calls    []domain.SessionToolCall
+	Effort  domain.SessionEffort
+	ToolMix []domain.ToolMixEntry
+	Calls   []domain.SessionToolCall
 
 	// Conversation facts, for steering load.
 	UserTurns          int64
