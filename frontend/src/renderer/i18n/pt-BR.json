@@ -112,6 +112,7 @@
 	"chat.draft.queueSaveFailed": "Não foi possível salvar a edição da mensagem na fila. Seu rascunho foi mantido.",
 	"chat.draft.readAttachmentFailed": "Não foi possível ler o anexo salvo. Seu rascunho foi mantido.",
 	"chat.draft.recordMessageFailed": "Não foi possível registrar a aceitação localmente. Tente novamente com o mesmo ID de entrega para confirmá-la.",
+	"chat.draft.recordMessageSuperseded": "This message was superseded by a session reset before it could be recorded locally. It was not sent automatically — resend it if it's still needed.",
 	"chat.draft.retryMessage": "Tentar novamente com segurança",
 	"chat.draft.saveFailed": "Não foi possível salvar o rascunho. Mantenha este chat aberto ou copie o rascunho antes de sair.",
 	"chat.draft.sendAttachmentsFailed": "Mensagem não enviada. Seu rascunho e seus anexos foram mantidos para tentar novamente.",

@@ -111,6 +111,7 @@
 	"chat.draft.queueSaveFailed": "Could not save that queued message edit. Your draft was kept.",
 	"chat.draft.readAttachmentFailed": "The saved attachment could not be read. Your draft was kept.",
 	"chat.draft.recordMessageFailed": "Message acceptance couldn’t be recorded locally. Retry safely to reconcile it with the same delivery ID.",
+	"chat.draft.recordMessageSuperseded": "This message was superseded by a session reset before it could be recorded locally. It was not sent automatically — resend it if it's still needed.",
 	"chat.draft.retryMessage": "Retry message safely",
 	"chat.draft.saveFailed": "Draft couldn’t be saved. Keep this chat open or copy it before leaving.",
 	"chat.draft.sendAttachmentsFailed": "Message not sent. Your draft and attachments were kept so you can retry.",

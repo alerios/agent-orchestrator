@@ -111,6 +111,7 @@
 	"chat.draft.queueSaveFailed": "Die Änderung der wartenden Nachricht konnte nicht gespeichert werden. Ihr Entwurf wurde behalten.",
 	"chat.draft.readAttachmentFailed": "Der gespeicherte Anhang konnte nicht gelesen werden. Ihr Entwurf wurde behalten.",
 	"chat.draft.recordMessageFailed": "Die Annahme konnte nicht lokal gespeichert werden. Versuchen Sie es mit derselben Zustellungs-ID erneut, um sie abzugleichen.",
+	"chat.draft.recordMessageSuperseded": "This message was superseded by a session reset before it could be recorded locally. It was not sent automatically — resend it if it's still needed.",
 	"chat.draft.retryMessage": "Sicher erneut versuchen",
 	"chat.draft.saveFailed": "Der Entwurf konnte nicht gespeichert werden. Lassen Sie diesen Chat geöffnet oder kopieren Sie den Entwurf vor dem Verlassen.",
 	"chat.draft.sendAttachmentsFailed": "Nachricht nicht gesendet. Ihr Entwurf und die Anhänge wurden für einen erneuten Versuch behalten.",

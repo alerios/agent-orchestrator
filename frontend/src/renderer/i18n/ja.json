@@ -111,6 +111,7 @@
 	"chat.draft.queueSaveFailed": "待機中のメッセージの編集を保存できませんでした。下書きは保持されています。",
 	"chat.draft.readAttachmentFailed": "保存済みの添付ファイルを読み取れませんでした。下書きは保持されています。",
 	"chat.draft.recordMessageFailed": "受け付け結果をローカルに記録できませんでした。同じ配信 ID で安全に再試行して結果を確認してください。",
+	"chat.draft.recordMessageSuperseded": "This message was superseded by a session reset before it could be recorded locally. It was not sent automatically — resend it if it's still needed.",
 	"chat.draft.retryMessage": "安全に再試行",
 	"chat.draft.saveFailed": "下書きを保存できませんでした。このチャットを開いたままにするか、離れる前に下書きをコピーしてください。",
 	"chat.draft.sendAttachmentsFailed": "メッセージは送信されませんでした。再試行できるように下書きと添付ファイルを保持しています。",

@@ -111,6 +111,7 @@
 	"chat.draft.queueSaveFailed": "无法保存排队消息的编辑。已保留您的草稿。",
 	"chat.draft.readAttachmentFailed": "无法读取已保存的附件。已保留您的草稿。",
 	"chat.draft.recordMessageFailed": "无法在本地记录接受结果。请使用相同的投递 ID 安全重试以确认结果。",
+	"chat.draft.recordMessageSuperseded": "This message was superseded by a session reset before it could be recorded locally. It was not sent automatically — resend it if it's still needed.",
 	"chat.draft.retryMessage": "安全重试",
 	"chat.draft.saveFailed": "无法保存草稿。请保持此聊天打开，或在离开前复制草稿。",
 	"chat.draft.sendAttachmentsFailed": "消息未发送。已保留您的草稿和附件，以便重试。",

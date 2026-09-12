@@ -112,6 +112,7 @@
 	"chat.draft.queueSaveFailed": "No se pudo guardar la edición del mensaje en cola. Se conservó tu borrador.",
 	"chat.draft.readAttachmentFailed": "No se pudo leer el archivo adjunto guardado. Se conservó tu borrador.",
 	"chat.draft.recordMessageFailed": "No se pudo registrar la aceptación localmente. Reintenta con el mismo ID de entrega para confirmarla.",
+	"chat.draft.recordMessageSuperseded": "This message was superseded by a session reset before it could be recorded locally. It was not sent automatically — resend it if it's still needed.",
 	"chat.draft.retryMessage": "Reintentar de forma segura",
 	"chat.draft.saveFailed": "No se pudo guardar el borrador. Mantén este chat abierto o cópialo antes de salir.",
 	"chat.draft.sendAttachmentsFailed": "Mensaje no enviado. Se conservaron tu borrador y sus archivos adjuntos para reintentar.",
